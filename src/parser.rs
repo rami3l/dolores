@@ -51,7 +51,8 @@ enum Stmt {
         /// Tokenhis value **must** be of variant `Expr::Variable`.
         superclass: Expr,
         /// # Note
-        /// Tokenhis `Vec` **must** contain instances of `Stmt::Function`.
+        /// Tokenhis `Vec` **must** contain instances of
+        /// `Stmt::Function`.
         methods: Vec<Stmt>,
     },
     Expression(Expr),
@@ -83,6 +84,7 @@ enum Stmt {
 enum Lit {
     Bool(bool),
     Number(f64),
+    Str(String),
     Nil,
 }
 
@@ -110,8 +112,8 @@ impl Parser {
         self.tokens.get(self.idx - 1).cloned()
     }
 
-    fn advance_if_matches(&mut self, patterns: &[Token]) -> bool {
-        let is_match = patterns.iter().any(|&pat| self.peek() == Some(pat));
+    fn test(&mut self, patterns: &[Token]) -> bool {
+        let is_match = patterns.iter().any(|pat| self.peek().as_ref() == Some(pat));
         if is_match {
             self.advance();
         }
@@ -120,6 +122,10 @@ impl Parser {
 
     // ** Recursive Descent **
 
+    fn expression(&mut self) -> Expr {
+        self.equality()
+    }
+
     #[allow(clippy::similar_names)]
     fn recursive_descent_binary(
         &mut self,
@@ -127,7 +133,7 @@ impl Parser {
         descend_parse: impl Fn(&mut Self) -> Expr,
     ) -> Expr {
         let mut res = descend_parse(self);
-        while self.advance_if_matches(patterns) {
+        while self.test(patterns) {
             let lhs = Box::new(res);
             let op = self.previous().unwrap();
             let rhs = Box::new(descend_parse(self));
@@ -153,23 +159,46 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Expr {
-        if self.advance_if_matches(&[Plus, Minus]) {
+        if self.test(&[Plus, Minus]) {
             let op = self.previous().unwrap();
             let rhs = Box::new(self.unary());
             return Expr::Unary { op, rhs };
         }
-        primary()
+        self.primary()
     }
 
     fn primary(&mut self) -> Expr {
         use Expr::*;
 
-        match () {
-            _ if self.advance_if_matches(&[False]) => Literal(Lit::Bool(false)),
-            _ if self.advance_if_matches(&[True]) => Literal(Lit::Bool(true)),
-            _ if self.advance_if_matches(&[Nil]) => Literal(Lit::Nil),
-            _ if self.advance_if_matches(&[Number]) => {
-                Literal(Lit::Number(self.peek().unwrap().span()))
+        macro_rules! advance_if_matches {
+            ( $( $pat:pat => $res:expr ),+ $(,)? ) => {{
+                match self.peek() {
+                    $( Some($pat) => Some($res), )+
+                    _ => None,
+                }
+                .map(|x| {
+                    self.advance();
+                    x
+                })
+                .unwrap()
+            }};
+        }
+
+        advance_if_matches! {
+            False => Literal(Lit::Bool(false)),
+            True => Literal(Lit::Bool(true)),
+            Nil => Literal(Lit::Nil),
+            Str(s) => Literal(Lit::Str(s)),
+            Number(x) => Literal(Lit::Number(x)),
+            LeftParen => {
+                let inner = Box::new(self.expression());
+                if let Some(RightParen) = self.peek() {
+                    self.advance();
+                } else {
+                    // TODO: Fix this panic
+                    panic!("expect `)` after expression")
+                }
+                Grouping(inner)
             }
         }
     }

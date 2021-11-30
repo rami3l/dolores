@@ -2,7 +2,7 @@ use logos::Logos;
 
 #[repr(u16)]
 #[derive(Logos, Debug, PartialEq, Clone)]
-enum Token<'a> {
+pub(crate) enum Token {
     // Single-character tokens.
     #[token("(")]
     LeftParen,
@@ -63,11 +63,11 @@ enum Token<'a> {
     LessEqual,
 
     // Literals.
-    #[regex(r"[a-zA-Z_][0-9a-zA-Z_?!]*")]
-    Identifier(&'a str),
+    #[regex(r"[a-zA-Z_][0-9a-zA-Z_?!]*", |lex| lex.slice().to_string())]
+    Identifier(String),
 
-    #[regex(r#""(([^\r\n\\"]|\\.)*)"|'(([^\r\n\\']|\\.)*)'"#)]
-    String(&'a str),
+    #[regex(r#""(([^\r\n\\"]|\\.)*)"|'(([^\r\n\\']|\\.)*)'"#, |lex| lex.slice().to_string())]
+    Str(String),
 
     // Numerical conversions are painful! It's better to use floats only here...
     #[regex(r"0|0x[0-9a-fA-F_]+|[0-9]+", |lex| lex.slice().parse())]
@@ -124,9 +124,9 @@ enum Token<'a> {
     While,
 
     // Misc.
-    #[regex(r"//[^\r\n]*(\r\n|\n)?")]
+    #[regex(r"//[^\r\n]*(\r\n|\n)?", |lex| lex.slice().to_string())]
     // TODO: Add MultiLineComment maybe?
-    SingleLineComment(&'a str),
+    SingleLineComment(String),
 
     #[error]
     #[regex(r"[ \t\n\f]+", logos::skip)]
@@ -171,9 +171,9 @@ mod tests {
             r#"var language = "lox";"#,
             &[
                 (Var, 0..3),
-                (Identifier("language"), 4..12),
+                (Identifier("language".into()), 4..12),
                 (Equal, 13..14),
-                (String(r#""lox""#), 15..20),
+                (Str(r#""lox""#.into()), 15..20),
                 (Semicolon, 20..21),
             ],
         );
