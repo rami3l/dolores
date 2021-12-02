@@ -202,9 +202,8 @@ impl Parser {
         F: Fn(&mut Self) -> Result<Expr>,
     {
         let mut res = descend_parse(self)?;
-        while self.test(tys).is_some() {
+        while let Some(op) = self.test(tys) {
             let lhs = Box::new(res);
-            let op = self.previous().unwrap();
             let rhs = Box::new(descend_parse(self)?);
             res = Expr::Binary { lhs, op, rhs }
         }
@@ -228,10 +227,28 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Result<Expr> {
-        if self.test(&[Plus, Minus]).is_some() {
-            let op = self.previous().unwrap();
+        if let Some(op) = self.test(&[Plus, Minus]) {
             let rhs = Box::new(self.unary()?);
             return Ok(Expr::Unary { op, rhs });
+        }
+        if let Some(op) = self.test(&[
+            // TODO: This is false since the precedence is */, +-, <=>
+            Slash,
+            Star,
+            Greater,
+            GreaterEqual,
+            Less,
+            LessEqual,
+            BangEqual,
+            EqualEqual,
+        ]) {
+            // Consume the ill-formed RHS.
+            let _rhs = self.unary()?;
+            bail(
+                op.pos,
+                "while parsing an Unary expression",
+                format!("found binary operator `{}`", op.lexeme),
+            )?;
         }
         self.primary()
     }
@@ -263,7 +280,7 @@ impl Parser {
             lp = LeftParen => {
                 let inner = self.expression()?;
                 if self.test(&[RightParen]).is_none() {
-                    bail(lp.pos, "while parsing parenthesized Group", "`)` expected")?;
+                    bail(lp.pos, "while parsing a parenthesized Group", "`)` expected")?;
                 }
                 Grouping(Box::new(inner))
             },
@@ -283,8 +300,6 @@ impl Parser {
 #[allow(clippy::enum_glob_use)]
 #[cfg(test)]
 mod tests {
-    use anyhow::Result;
-    use indoc::indoc;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -325,15 +340,45 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "unexpected token")]
-    fn binary_used_as_unary() {
-        let tokens = Lexer::new("*1").analyze();
+    #[should_panic(expected = "found binary operator `*`")]
+    fn mul_used_as_unary() {
+        let tokens = Lexer::new("1+*2-3)").analyze();
         let _got = Parser::new(tokens).expression().unwrap();
     }
 
     #[test]
-    fn binary_used_as_unary_sync() {
-        let tokens = Lexer::new("*1; 2+3").analyze();
+    fn mul_used_as_unary_sync() {
+        let tokens = Lexer::new("1+*2-3").analyze();
+        let mut parser = Parser::new(tokens);
+        assert!(parser.expression().is_err());
+        parser.sync();
+        let got = parser.expression().unwrap();
+        let expected = "(+ 2 3)";
+        assert_eq!(expected, format!("{}", got));
+    }
+
+    #[test]
+    fn inequality() {
+        let tokens = Lexer::new("-(-1+2) >=3- 4 *5+ (6/ 7)").analyze();
+        let got = Parser::new(tokens).expression().unwrap();
+        let expected = "(>= (- (group (+ (- 1) 2))) (+ (- 3 (* 4 5)) (group (/ 6 7))))";
+        assert_eq!(expected, format!("{}", got));
+    }
+
+    #[test]
+    fn inequality_used_as_unary() {
+        let tokens = Lexer::new(">= 1+2").analyze();
+        let mut parser = Parser::new(tokens);
+        assert!(parser.expression().is_err());
+        parser.sync();
+        let got = parser.expression().unwrap();
+        let expected = "(+ 2 3)";
+        assert_eq!(expected, format!("{}", got));
+    }
+
+    #[test]
+    fn inequality_used_as_unary_sync() {
+        let tokens = Lexer::new(">=(-1+2) 2/3").analyze();
         let mut parser = Parser::new(tokens);
         assert!(parser.expression().is_err());
         parser.sync();
