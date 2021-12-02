@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use logos::Logos;
 
 use crate::util::index_to_pos;
@@ -32,8 +34,14 @@ pub(crate) struct Token {
     pub pos: (usize, usize),
 }
 
-#[repr(u16)]
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.lexeme)
+    }
+}
+
 #[derive(Logos, Debug, PartialEq, Clone, Copy)]
+#[repr(u16)]
 pub(crate) enum TokenType {
     // Single-character tokens.
     #[token("(")]

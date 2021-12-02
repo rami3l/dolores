@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use anyhow::{bail, Result};
 
 #[allow(clippy::enum_glob_use)]
@@ -53,6 +55,29 @@ enum Expr {
     Variable(Token),
 }
 
+impl Display for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        #[allow(clippy::enum_glob_use)]
+        use Expr::*;
+
+        match self {
+            Assign { name, val } => write!(f, "(assign! {} {})", name, val),
+            Binary { lhs, op, rhs } | Logical { lhs, op, rhs } => {
+                write!(f, "({} {} {})", op, lhs, rhs)
+            }
+            Call { callee, args, .. } => write!(f, "(call {} {:?})", callee, args),
+            Get { obj, name } => write!(f, "(obj-get {} '{})", obj, name),
+            Grouping(g) => write!(f, "(group {})", g),
+            Literal(lit) => write!(f, "{}", lit),
+            Set { obj, name, to } => write!(f, "(obj-set! {} '{} {})", obj, name, to),
+            Super { kw, method } => write!(f, "({} '{})", kw, method),
+            This(kw) => write!(f, "({})", kw),
+            Unary { op, rhs } => write!(f, "({} {})", op, rhs),
+            Variable(var) => write!(f, "(var '{})", var),
+        }
+    }
+}
+
 enum Stmt {
     Block(Vec<Stmt>),
     Class {
@@ -97,6 +122,17 @@ enum Lit {
     Number(f64),
     Str(String),
     Nil,
+}
+
+impl Display for Lit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Lit::Bool(b) => write!(f, "{}", b),
+            Lit::Number(n) => write!(f, "{}", n),
+            Lit::Str(s) => write!(f, r#""{}""#, s),
+            Lit::Nil => write!(f, "nil"),
+        }
+    }
 }
 
 struct Parser {
@@ -255,31 +291,54 @@ mod tests {
     use crate::lexer::Lexer;
 
     #[test]
-    fn test_basic_parsing() -> Result<()> {
+    fn basic() {
         let tokens = Lexer::new("1+2 / 3- 4 *5").analyze();
-        let got = Parser::new(tokens).expression()?;
-        let expected = indoc!(
-            r#"Binary { lhs: Binary { lhs: Literal(Number(1.0)), op: Token { ty: Plus, lexeme: "+", pos: (1, 2) }, rhs: Binary { lhs: Literal(Number(2.0)), op: Token { ty: Slash, lexeme: "/", pos: (1, 5) }, rhs: Literal(Number(3.0)) } }, op: Token { ty: Minus, lexeme: "-", pos: (1, 8) }, rhs: Binary { lhs: Literal(Number(4.0)), op: Token { ty: Star, lexeme: "*", pos: (1, 12) }, rhs: Literal(Number(5.0)) } }"#
-        );
-        assert_eq!(expected, format!("{:?}", got));
-        Ok(())
+        let got = Parser::new(tokens).expression().unwrap();
+        let expected = "(- (+ 1 (/ 2 3)) (* 4 5))";
+        assert_eq!(expected, format!("{}", got));
     }
 
     #[test]
-    fn test_basic_parsing_with_parens() -> Result<()> {
+    fn parens() {
         let tokens = Lexer::new("-(-1+2 / 3- 4 *5+ (6/ 7))").analyze();
-        let got = Parser::new(tokens).expression()?;
-        let expected = indoc!(
-            r#"Unary { op: Token { ty: Minus, lexeme: "-", pos: (1, 1) }, rhs: Grouping(Binary { lhs: Binary { lhs: Binary { lhs: Unary { op: Token { ty: Minus, lexeme: "-", pos: (1, 3) }, rhs: Literal(Number(1.0)) }, op: Token { ty: Plus, lexeme: "+", pos: (1, 5) }, rhs: Binary { lhs: Literal(Number(2.0)), op: Token { ty: Slash, lexeme: "/", pos: (1, 8) }, rhs: Literal(Number(3.0)) } }, op: Token { ty: Minus, lexeme: "-", pos: (1, 11) }, rhs: Binary { lhs: Literal(Number(4.0)), op: Token { ty: Star, lexeme: "*", pos: (1, 15) }, rhs: Literal(Number(5.0)) } }, op: Token { ty: Plus, lexeme: "+", pos: (1, 17) }, rhs: Grouping(Binary { lhs: Literal(Number(6.0)), op: Token { ty: Slash, lexeme: "/", pos: (1, 21) }, rhs: Literal(Number(7.0)) }) }) }"#
-        );
-        assert_eq!(expected, format!("{:?}", got));
-        Ok(())
+        let got = Parser::new(tokens).expression().unwrap();
+        let expected = "(- (group (+ (- (+ (- 1) (/ 2 3)) (* 4 5)) (group (/ 6 7)))))";
+        assert_eq!(expected, format!("{}", got));
     }
 
     #[test]
     #[should_panic(expected = "`)` expected")]
-    fn test_basic_parsing_with_mismatch() {
+    fn paren_mismatch() {
         let tokens = Lexer::new("-(-1+2 / 3- 4 *5+ (6/ 7)").analyze();
         let _got = Parser::new(tokens).expression().unwrap();
+    }
+
+    #[test]
+    fn paren_mismatch_sync() {
+        let tokens = Lexer::new("-(-1+2 / 3- 4 *5+ (6/ 7); 8 +9").analyze();
+        let mut parser = Parser::new(tokens);
+        assert!(parser.expression().is_err());
+        parser.sync();
+        let got = parser.expression().unwrap();
+        let expected = "(+ 8 9)";
+        assert_eq!(expected, format!("{}", got));
+    }
+
+    #[test]
+    #[should_panic(expected = "unexpected token")]
+    fn binary_used_as_unary() {
+        let tokens = Lexer::new("*1").analyze();
+        let _got = Parser::new(tokens).expression().unwrap();
+    }
+
+    #[test]
+    fn binary_used_as_unary_sync() {
+        let tokens = Lexer::new("*1; 2+3").analyze();
+        let mut parser = Parser::new(tokens);
+        assert!(parser.expression().is_err());
+        parser.sync();
+        let got = parser.expression().unwrap();
+        let expected = "(+ 2 3)";
+        assert_eq!(expected, format!("{}", got));
     }
 }
