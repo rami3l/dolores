@@ -1,5 +1,6 @@
 use crate::lexer::Token::{self, *};
 
+#[derive(Debug, Clone)]
 enum Expr {
     Assign {
         name: Token,
@@ -81,6 +82,7 @@ enum Stmt {
     },
 }
 
+#[derive(Debug, Clone)]
 enum Lit {
     Bool(bool),
     Number(f64),
@@ -173,13 +175,12 @@ impl Parser {
         macro_rules! advance_if_matches {
             ( $( $pat:pat => $res:expr ),+ $(,)? ) => {{
                 match self.peek() {
-                    $( Some($pat) => Some($res), )+
+                    $( Some($pat) => {
+                        self.advance();
+                        Some($res)
+                    }, )+
                     _ => None,
                 }
-                .map(|x| {
-                    self.advance();
-                    x
-                })
                 .unwrap()
             }};
         }
@@ -191,15 +192,76 @@ impl Parser {
             Str(s) => Literal(Lit::Str(s)),
             Number(x) => Literal(Lit::Number(x)),
             LeftParen => {
-                let inner = Box::new(self.expression());
-                if let Some(RightParen) = self.peek() {
+                let inner = self.expression();
+                /*if let Some(RightParen) = self.peek() {
                     self.advance();
                 } else {
-                    // TODO: Fix this panic
                     panic!("expect `)` after expression")
+                }*/
+                if !self.test(&[RightParen]) {
+                    // TODO: Fix this panic
+                    panic!("expect `)` after expression");
                 }
-                Grouping(inner)
+                Grouping(Box::new(inner))
             }
         }
+    }
+}
+
+#[allow(clippy::enum_glob_use)]
+#[cfg(test)]
+mod tests {
+    use indoc::indoc;
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn test_basic_parsing() {
+        let tokens = vec![
+            Number(1.),
+            Plus,
+            Number(2.),
+            Slash,
+            Number(3.),
+            Minus,
+            Number(4.),
+            Star,
+            Number(5.),
+        ];
+        let mut parser = Parser::new(tokens);
+        let got = parser.expression();
+        let expected = indoc!(
+            r#"Binary { lhs: Binary { lhs: Literal(Number(1.0)), op: Plus, rhs: Binary { lhs: Literal(Number(2.0)), op: Slash, rhs: Literal(Number(3.0)) } }, op: Minus, rhs: Binary { lhs: Literal(Number(4.0)), op: Star, rhs: Literal(Number(5.0)) } }"#
+        );
+        assert_eq!(expected, format!("{:?}", got));
+    }
+
+    #[test]
+    fn test_basic_parsing_with_parens() {
+        let tokens = vec![
+            Minus,
+            Number(1.),
+            Plus,
+            Number(2.),
+            Slash,
+            Number(3.),
+            Minus,
+            Number(4.),
+            Star,
+            Number(5.),
+            Plus,
+            LeftParen,
+            Number(6.),
+            Slash,
+            Number(7.),
+            RightParen,
+        ];
+        let mut parser = Parser::new(tokens);
+        let got = parser.expression();
+        let expected = indoc!(
+            r#"Binary { lhs: Binary { lhs: Binary { lhs: Unary { op: Minus, rhs: Literal(Number(1.0)) }, op: Plus, rhs: Binary { lhs: Literal(Number(2.0)), op: Slash, rhs: Literal(Number(3.0)) } }, op: Minus, rhs: Binary { lhs: Literal(Number(4.0)), op: Star, rhs: Literal(Number(5.0)) } }, op: Plus, rhs: Grouping(Binary { lhs: Literal(Number(6.0)), op: Slash, rhs: Literal(Number(7.0)) }) }"#
+        );
+        assert_eq!(expected, format!("{:?}", got));
     }
 }

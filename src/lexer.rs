@@ -178,4 +178,29 @@ mod tests {
             ],
         );
     }
+
+    #[test]
+    fn test_calculation() {
+        use Token::*;
+        assert_lex(
+            "1+ 2 / 3 -4 * 5 + (6/7)",
+            &[
+                (Number(1.), 0..1),
+                (Plus, 1..2),
+                (Number(2.), 3..4),
+                (Slash, 5..6),
+                (Number(3.), 7..8),
+                (Minus, 9..10),
+                (Number(4.), 10..11),
+                (Star, 12..13),
+                (Number(5.), 14..15),
+                (Plus, 16..17),
+                (LeftParen, 18..19),
+                (Number(6.), 19..20),
+                (Slash, 20..21),
+                (Number(7.), 21..22),
+                (RightParen, 22..23),
+            ],
+        );
+    }
 }
