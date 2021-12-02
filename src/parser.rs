@@ -140,6 +140,20 @@ impl Parser {
         })
     }
 
+    fn sync(&mut self) {
+        let stmt_beginning = [Class, Fun, Var, For, If, While, Print, Return];
+        loop {
+            self.advance();
+            let curr = self.peek();
+            let synced = curr.is_none() // Reached the end of the source.
+                || self.previous().unwrap().ty == Semicolon // Passed the end of the statement.
+                || stmt_beginning.contains(&curr.unwrap().ty); // Reached the beginning of another statement.
+            if synced {
+                break;
+            }
+        }
+    }
+
     // ** Recursive Descent **
 
     fn expression(&mut self) -> Result<Expr> {
