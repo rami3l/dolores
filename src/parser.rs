@@ -1,4 +1,13 @@
-use crate::lexer::Token::{self, *};
+use anyhow::{bail, Result};
+
+#[allow(clippy::enum_glob_use)]
+use crate::{
+    lexer::{
+        Token,
+        TokenType::{self, *},
+    },
+    run::bail,
+};
 
 #[derive(Debug, Clone)]
 enum Expr {
@@ -96,8 +105,11 @@ struct Parser {
 }
 
 impl Parser {
-    fn new(tokens: Vec<Token>) -> Self {
-        Parser { tokens, idx: 0 }
+    fn new(tokens: impl Iterator<Item = Token>) -> Self {
+        Parser {
+            tokens: tokens.collect(),
+            idx: 0,
+        }
     }
 
     fn peek(&self) -> Option<Token> {
@@ -114,154 +126,146 @@ impl Parser {
         self.tokens.get(self.idx - 1).cloned()
     }
 
-    fn test(&mut self, patterns: &[Token]) -> bool {
-        let is_match = patterns.iter().any(|pat| self.peek().as_ref() == Some(pat));
-        if is_match {
-            self.advance();
-        }
-        is_match
+    fn check(&mut self, ty: TokenType) -> Option<Token> {
+        self.peek().filter(|t| t.ty == ty)
+    }
+
+    fn test(&mut self, tys: &[TokenType]) -> Option<Token> {
+        tys.iter().find_map(|&ty| {
+            let curr = self.peek();
+            self.check(ty).and_then(|_| {
+                self.advance();
+                curr
+            })
+        })
     }
 
     // ** Recursive Descent **
 
-    fn expression(&mut self) -> Expr {
+    fn expression(&mut self) -> Result<Expr> {
         self.equality()
     }
 
     #[allow(clippy::similar_names)]
-    fn recursive_descent_binary(
-        &mut self,
-        patterns: &[Token],
-        descend_parse: impl Fn(&mut Self) -> Expr,
-    ) -> Expr {
-        let mut res = descend_parse(self);
-        while self.test(patterns) {
+    fn recursive_descent_binary<F>(&mut self, tys: &[TokenType], descend_parse: F) -> Result<Expr>
+    where
+        F: Fn(&mut Self) -> Result<Expr>,
+    {
+        let mut res = descend_parse(self)?;
+        while self.test(tys).is_some() {
             let lhs = Box::new(res);
             let op = self.previous().unwrap();
-            let rhs = Box::new(descend_parse(self));
+            let rhs = Box::new(descend_parse(self)?);
             res = Expr::Binary { lhs, op, rhs }
         }
-        res
+        Ok(res)
     }
 
-    fn equality(&mut self) -> Expr {
+    fn equality(&mut self) -> Result<Expr> {
         self.recursive_descent_binary(&[BangEqual, EqualEqual], Self::comparison)
     }
 
-    fn comparison(&mut self) -> Expr {
+    fn comparison(&mut self) -> Result<Expr> {
         self.recursive_descent_binary(&[Greater, GreaterEqual, Less, LessEqual], Self::term)
     }
 
-    fn term(&mut self) -> Expr {
+    fn term(&mut self) -> Result<Expr> {
         self.recursive_descent_binary(&[Plus, Minus], Self::factor)
     }
 
-    fn factor(&mut self) -> Expr {
+    fn factor(&mut self) -> Result<Expr> {
         self.recursive_descent_binary(&[Slash, Star], Self::unary)
     }
 
-    fn unary(&mut self) -> Expr {
-        if self.test(&[Plus, Minus]) {
+    fn unary(&mut self) -> Result<Expr> {
+        if self.test(&[Plus, Minus]).is_some() {
             let op = self.previous().unwrap();
-            let rhs = Box::new(self.unary());
-            return Expr::Unary { op, rhs };
+            let rhs = Box::new(self.unary()?);
+            return Ok(Expr::Unary { op, rhs });
         }
         self.primary()
     }
 
-    fn primary(&mut self) -> Expr {
-        use Expr::*;
+    fn primary(&mut self) -> Result<Expr> {
+        use Expr::{Grouping, Literal};
 
-        macro_rules! advance_if_matches {
-            ( $( $pat:pat => $res:expr ),+ $(,)? ) => {{
-                match self.peek() {
-                    $( Some($pat) => {
-                        self.advance();
-                        Some($res)
-                    }, )+
-                    _ => None,
-                }
-                .unwrap()
+        macro_rules! bail_if_matches {
+            ( $( $pat:pat = $ty:expr => $res:expr ),+ $(,)? ) => {{
+                $( if let Some($pat) = self.test(&[$ty]) {
+                    return Ok($res);
+                } )+
             }};
         }
 
-        advance_if_matches! {
-            False => Literal(Lit::Bool(false)),
-            True => Literal(Lit::Bool(true)),
-            Nil => Literal(Lit::Nil),
-            Str(s) => Literal(Lit::Str(s)),
-            Number(x) => Literal(Lit::Number(x)),
-            LeftParen => {
-                let inner = self.expression();
-                /*if let Some(RightParen) = self.peek() {
-                    self.advance();
-                } else {
-                    panic!("expect `)` after expression")
-                }*/
-                if !self.test(&[RightParen]) {
-                    // TODO: Fix this panic
-                    panic!("expect `)` after expression");
+        bail_if_matches! {
+            _ = False => Literal(Lit::Bool(false)),
+            _ = True => Literal(Lit::Bool(true)),
+            _ = Nil => Literal(Lit::Nil),
+            s = Str => Literal(Lit::Str(s.lexeme)),
+            n = Number => {
+                let lexeme = &n.lexeme;
+                let val = lexeme.parse();
+                if let Err(e) = &val {
+                    bail(n.pos, &format!("while parsing Number `{}`", lexeme), e)?;
+                }
+                Literal(Lit::Number(val.unwrap()))
+            },
+            lp = LeftParen => {
+                let inner = self.expression()?;
+                if self.test(&[RightParen]).is_none() {
+                    bail(lp.pos, "while parsing parenthesized Group", "`)` expected")?;
                 }
                 Grouping(Box::new(inner))
-            }
+            },
+        };
+
+        if let Some(t) = self.peek() {
+            bail(
+                t.pos,
+                &format!("while parsing `{}`", &t.lexeme),
+                "unexpected token",
+            )?;
         }
+        bail!("[L??:??] Error while parsing: token index out of range")
     }
 }
 
 #[allow(clippy::enum_glob_use)]
 #[cfg(test)]
 mod tests {
+    use anyhow::Result;
     use indoc::indoc;
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::lexer::Lexer;
 
     #[test]
-    fn test_basic_parsing() {
-        let tokens = vec![
-            Number(1.),
-            Plus,
-            Number(2.),
-            Slash,
-            Number(3.),
-            Minus,
-            Number(4.),
-            Star,
-            Number(5.),
-        ];
-        let mut parser = Parser::new(tokens);
-        let got = parser.expression();
+    fn test_basic_parsing() -> Result<()> {
+        let tokens = Lexer::new("1+2 / 3- 4 *5").analyze();
+        let got = Parser::new(tokens).expression()?;
         let expected = indoc!(
-            r#"Binary { lhs: Binary { lhs: Literal(Number(1.0)), op: Plus, rhs: Binary { lhs: Literal(Number(2.0)), op: Slash, rhs: Literal(Number(3.0)) } }, op: Minus, rhs: Binary { lhs: Literal(Number(4.0)), op: Star, rhs: Literal(Number(5.0)) } }"#
+            r#"Binary { lhs: Binary { lhs: Literal(Number(1.0)), op: Token { ty: Plus, lexeme: "+", pos: (1, 2) }, rhs: Binary { lhs: Literal(Number(2.0)), op: Token { ty: Slash, lexeme: "/", pos: (1, 5) }, rhs: Literal(Number(3.0)) } }, op: Token { ty: Minus, lexeme: "-", pos: (1, 8) }, rhs: Binary { lhs: Literal(Number(4.0)), op: Token { ty: Star, lexeme: "*", pos: (1, 12) }, rhs: Literal(Number(5.0)) } }"#
         );
         assert_eq!(expected, format!("{:?}", got));
+        Ok(())
     }
 
     #[test]
-    fn test_basic_parsing_with_parens() {
-        let tokens = vec![
-            Minus,
-            Number(1.),
-            Plus,
-            Number(2.),
-            Slash,
-            Number(3.),
-            Minus,
-            Number(4.),
-            Star,
-            Number(5.),
-            Plus,
-            LeftParen,
-            Number(6.),
-            Slash,
-            Number(7.),
-            RightParen,
-        ];
-        let mut parser = Parser::new(tokens);
-        let got = parser.expression();
+    fn test_basic_parsing_with_parens() -> Result<()> {
+        let tokens = Lexer::new("-(-1+2 / 3- 4 *5+ (6/ 7))").analyze();
+        let got = Parser::new(tokens).expression()?;
         let expected = indoc!(
-            r#"Binary { lhs: Binary { lhs: Binary { lhs: Unary { op: Minus, rhs: Literal(Number(1.0)) }, op: Plus, rhs: Binary { lhs: Literal(Number(2.0)), op: Slash, rhs: Literal(Number(3.0)) } }, op: Minus, rhs: Binary { lhs: Literal(Number(4.0)), op: Star, rhs: Literal(Number(5.0)) } }, op: Plus, rhs: Grouping(Binary { lhs: Literal(Number(6.0)), op: Slash, rhs: Literal(Number(7.0)) }) }"#
+            r#"Unary { op: Token { ty: Minus, lexeme: "-", pos: (1, 1) }, rhs: Grouping(Binary { lhs: Binary { lhs: Binary { lhs: Unary { op: Token { ty: Minus, lexeme: "-", pos: (1, 3) }, rhs: Literal(Number(1.0)) }, op: Token { ty: Plus, lexeme: "+", pos: (1, 5) }, rhs: Binary { lhs: Literal(Number(2.0)), op: Token { ty: Slash, lexeme: "/", pos: (1, 8) }, rhs: Literal(Number(3.0)) } }, op: Token { ty: Minus, lexeme: "-", pos: (1, 11) }, rhs: Binary { lhs: Literal(Number(4.0)), op: Token { ty: Star, lexeme: "*", pos: (1, 15) }, rhs: Literal(Number(5.0)) } }, op: Token { ty: Plus, lexeme: "+", pos: (1, 17) }, rhs: Grouping(Binary { lhs: Literal(Number(6.0)), op: Token { ty: Slash, lexeme: "/", pos: (1, 21) }, rhs: Literal(Number(7.0)) }) }) }"#
         );
         assert_eq!(expected, format!("{:?}", got));
+        Ok(())
+    }
+
+    #[test]
+    #[should_panic(expected = "`)` expected")]
+    fn test_basic_parsing_with_mismatch() {
+        let tokens = Lexer::new("-(-1+2 / 3- 4 *5+ (6/ 7)").analyze();
+        let _got = Parser::new(tokens).expression().unwrap();
     }
 }

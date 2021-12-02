@@ -1,8 +1,40 @@
 use logos::Logos;
 
+use crate::util::index_to_pos;
+
+pub(crate) struct Lexer<'s> {
+    inner: logos::Lexer<'s, TokenType>,
+}
+
+impl<'s> Lexer<'s> {
+    pub fn new(src: &'s str) -> Self {
+        Lexer {
+            inner: TokenType::lexer(src),
+        }
+    }
+
+    pub fn analyze(self) -> impl Iterator<Item = Token> + 's {
+        let src = self.inner.source();
+        self.inner.spanned().map(|(ty, span)| Token {
+            ty,
+            pos: index_to_pos(src, span.start),
+            lexeme: src[span].into(),
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub(crate) struct Token {
+    pub ty: TokenType,
+    pub lexeme: String,
+    /// The `(line_num, column_num)` pair of the starting position of this
+    /// token, in the text editor standard (index starting from 1).
+    pub pos: (usize, usize),
+}
+
 #[repr(u16)]
-#[derive(Logos, Debug, PartialEq, Clone)]
-pub(crate) enum Token {
+#[derive(Logos, Debug, PartialEq, Clone, Copy)]
+pub(crate) enum TokenType {
     // Single-character tokens.
     #[token("(")]
     LeftParen,
@@ -63,16 +95,16 @@ pub(crate) enum Token {
     LessEqual,
 
     // Literals.
-    #[regex(r"[a-zA-Z_][0-9a-zA-Z_?!]*", |lex| lex.slice().to_string())]
-    Identifier(String),
+    #[regex(r"[a-zA-Z_][0-9a-zA-Z_?!]*")]
+    Identifier,
 
-    #[regex(r#""(([^\r\n\\"]|\\.)*)"|'(([^\r\n\\']|\\.)*)'"#, |lex| lex.slice().to_string())]
-    Str(String),
+    #[regex(r#""(([^\r\n\\"]|\\.)*)"|'(([^\r\n\\']|\\.)*)'"#)]
+    Str,
 
     // Numerical conversions are painful! It's better to use floats only here...
-    #[regex(r"0|0x[0-9a-fA-F_]+|[0-9]+", |lex| lex.slice().parse())]
-    #[regex(r"[0-9]*\.[0-9]+([eE][+-]?[0-9]+)?", |lex| lex.slice().parse())]
-    Number(f64),
+    #[regex(r"0|0x[0-9a-fA-F_]+|[0-9]+")]
+    #[regex(r"[0-9]*\.[0-9]+([eE][+-]?[0-9]+)?")]
+    Number,
 
     // Keywords.
     #[token("and")]
@@ -124,9 +156,9 @@ pub(crate) enum Token {
     While,
 
     // Misc.
-    #[regex(r"//[^\r\n]*(\r\n|\n)?", |lex| lex.slice().to_string())]
+    #[regex(r"//[^\r\n]*(\r\n|\n)?")]
     // TODO: Add MultiLineComment maybe?
-    SingleLineComment(String),
+    SingleLineComment,
 
     #[error]
     #[regex(r"[ \t\n\f]+", logos::skip)]
@@ -136,71 +168,36 @@ pub(crate) enum Token {
 #[allow(clippy::enum_glob_use)]
 #[cfg(test)]
 mod tests {
-    use std::{fmt, ops::Range};
-
-    use logos::source::Source;
     use pretty_assertions::assert_eq;
 
-    use super::*;
+    use super::{TokenType::*, *};
 
-    fn lex_spanned<'a, T, S>(source: &'a T::Source) -> Vec<(T, Range<usize>)>
-    where
-        T: Logos<'a>,
-        T::Extras: Default,
-        T::Source: Source<Slice = S>,
-        S: 'a + ?Sized,
-    {
-        T::lexer(source).spanned().collect()
+    fn lex(src: &str) -> Vec<(TokenType, String)> {
+        Lexer::new(src)
+            .analyze()
+            .map(|t| (t.ty, t.lexeme))
+            .collect()
     }
 
-    // Shamelessly copied from [Logos](https://github.com/maciejhirsz/logos/blob/925c49e9bde178700d5c6c1843133017a88bab85/tests/src/lib.rs)
-    fn assert_lex<'a, T, S>(source: &'a T::Source, expected_tokens: &[(T, Range<usize>)])
-    where
-        T: Logos<'a> + PartialEq + fmt::Debug,
-        T::Extras: Default,
-        T::Source: Source<Slice = S>,
-        S: 'a + ?Sized + PartialEq + fmt::Debug,
-    {
-        assert_eq!(expected_tokens, &lex_spanned(source));
+    macro_rules! assert_lex {
+        ($expected:expr, $got:expr $(,)?) => {
+            assert_eq!($expected, format!("{:?}", &lex($got)))
+        };
     }
 
     #[test]
     fn test_basic_lexing() {
-        use Token::*;
-        assert_lex(
-            r#"var language = "lox";"#,
-            &[
-                (Var, 0..3),
-                (Identifier("language".into()), 4..12),
-                (Equal, 13..14),
-                (Str(r#""lox""#.into()), 15..20),
-                (Semicolon, 20..21),
-            ],
+        assert_lex!(
+            r#"[(Var, "var"), (Identifier, "language"), (Equal, "="), (Str, "\"lox\""), (Semicolon, ";")]"#,
+            r#"var language = "lox";"#
         );
     }
 
     #[test]
-    fn test_calculation() {
-        use Token::*;
-        assert_lex(
+    fn test_lexing_calculator() {
+        assert_lex!(
+            r#"[(Number, "1"), (Plus, "+"), (Number, "2"), (Slash, "/"), (Number, "3"), (Minus, "-"), (Number, "4"), (Star, "*"), (Number, "5"), (Plus, "+"), (LeftParen, "("), (Number, "6"), (Slash, "/"), (Number, "7"), (RightParen, ")")]"#,
             "1+ 2 / 3 -4 * 5 + (6/7)",
-            &[
-                (Number(1.), 0..1),
-                (Plus, 1..2),
-                (Number(2.), 3..4),
-                (Slash, 5..6),
-                (Number(3.), 7..8),
-                (Minus, 9..10),
-                (Number(4.), 10..11),
-                (Star, 12..13),
-                (Number(5.), 14..15),
-                (Plus, 16..17),
-                (LeftParen, 18..19),
-                (Number(6.), 19..20),
-                (Slash, 20..21),
-                (Number(7.), 21..22),
-                (RightParen, 22..23),
-            ],
         );
     }
 }

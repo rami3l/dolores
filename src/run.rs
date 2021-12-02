@@ -1,10 +1,10 @@
-use std::{convert::Infallible, path::Path};
+use std::{convert::Infallible, fmt::Display, path::Path};
 
 use anyhow::{bail, Result};
 use rustyline::{error::ReadlineError, Editor};
 
-pub(crate) fn bail(line_num: u64, place: &str, message: &str) -> Result<Infallible> {
-    bail!("[L{}] Error {}: {}", line_num, place, message)
+pub(crate) fn bail(pos: (usize, usize), ctx: &str, message: impl Display) -> Result<Infallible> {
+    bail!("[L{}:{}] Error {}: {}", pos.0, pos.1, ctx, message)
 }
 
 pub(crate) fn run_file(path: impl AsRef<Path>) -> Result<()> {
