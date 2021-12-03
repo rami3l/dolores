@@ -1,14 +1,16 @@
 use std::fmt::Display;
 
-use anyhow::{bail, Result};
+use nom::{
+    combinator::{flat_map, verify},
+    error::{ErrorKind, ParseError},
+    multi::fold_many0,
+    IResult, Parser,
+};
 
 #[allow(clippy::enum_glob_use)]
-use crate::{
-    lexer::{
-        Token,
-        TokenType::{self, *},
-    },
-    run::bail,
+use crate::lexer::{
+    Token,
+    TokenType::{self, *},
 };
 
 #[derive(Debug, Clone)]
@@ -135,6 +137,7 @@ impl Display for Lit {
     }
 }
 
+/*
 struct Parser {
     tokens: Vec<Token>,
     idx: usize,
@@ -148,6 +151,7 @@ impl Parser {
         }
     }
 
+    /*
     fn peek(&self) -> Option<Token> {
         self.tokens.get(self.idx).cloned()
     }
@@ -189,74 +193,91 @@ impl Parser {
             }
         }
     }
+    */
+}
+*/
 
-    // ** Recursive Descent **
+// ** Recursive Descent **
 
-    fn expression(&mut self) -> Result<Expr> {
-        self.equality()
+fn expression(s: &[Token]) -> IResult<&[Token], Expr> {
+    equality(s)
+}
+
+#[allow(clippy::similar_names)]
+fn recursive_descent_binary<'s>(
+    s: &'s [Token],
+    tys: &'s [TokenType],
+    descend: fn(&'s [Token]) -> IResult<&'s [Token], Expr>,
+) -> IResult<&'s [Token], Expr> {
+    let (s1, init) = descend(s)?;
+    fold_many0(
+        (|s| token_of(s, tys)).and(descend),
+        move || init.clone(),
+        |lhs, (op, rhs)| Expr::Binary {
+            lhs: Box::new(lhs),
+            op,
+            rhs: Box::new(rhs),
+        },
+    )(s1)
+}
+
+fn equality(s: &[Token]) -> IResult<&[Token], Expr> {
+    recursive_descent_binary(s, &[BangEqual, EqualEqual], comparison)
+}
+
+fn comparison(s: &[Token]) -> IResult<&[Token], Expr> {
+    recursive_descent_binary(s, &[Greater, GreaterEqual, Less, LessEqual], term)
+}
+
+fn term(s: &[Token]) -> IResult<&[Token], Expr> {
+    recursive_descent_binary(s, &[Plus, Minus], factor)
+}
+
+fn factor(s: &[Token]) -> IResult<&[Token], Expr> {
+    recursive_descent_binary(s, &[Slash, Star], unary)
+}
+
+fn unary(s: &[Token]) -> IResult<&[Token], Expr> {
+    (|s| token_of(s, &[Plus, Minus]))
+        .and(unary)
+        .map(|(op, rhs)| Expr::Unary {
+            op,
+            rhs: Box::new(rhs),
+        })
+        .parse(s)
+    /*
+    if let Some(op) = self.test(&[Plus, Minus]) {
+        let rhs = Box::new(self.unary()?);
+        return Ok(Expr::Unary { op, rhs });
     }
-
-    #[allow(clippy::similar_names)]
-    fn recursive_descent_binary<F>(&mut self, tys: &[TokenType], descend_parse: F) -> Result<Expr>
-    where
-        F: Fn(&mut Self) -> Result<Expr>,
-    {
-        let mut res = descend_parse(self)?;
-        while let Some(op) = self.test(tys) {
-            let lhs = Box::new(res);
-            let rhs = Box::new(descend_parse(self)?);
-            res = Expr::Binary { lhs, op, rhs }
-        }
-        Ok(res)
+    if let Some(op) = self.test(&[
+        // TODO: This is false since the precedence is * /, +-, <>, ==
+        Slash,
+        Star,
+        Greater,
+        GreaterEqual,
+        Less,
+        LessEqual,
+        BangEqual,
+        EqualEqual,
+    ]) {
+        // Consume the ill-formed RHS.
+        let _rhs = self.unary()?;
+        bail(
+            op.pos,
+            "while parsing an Unary expression",
+            format!("found binary operator `{}`", op.lexeme),
+        )?;
     }
+    self.primary()
+    */
+}
 
-    fn equality(&mut self) -> Result<Expr> {
-        self.recursive_descent_binary(&[BangEqual, EqualEqual], Self::comparison)
-    }
+/*
+fn primary(s: &[Token]) -> IResult<&[Token], Expr> {
+    use Expr::{Grouping, Literal};
 
-    fn comparison(&mut self) -> Result<Expr> {
-        self.recursive_descent_binary(&[Greater, GreaterEqual, Less, LessEqual], Self::term)
-    }
-
-    fn term(&mut self) -> Result<Expr> {
-        self.recursive_descent_binary(&[Plus, Minus], Self::factor)
-    }
-
-    fn factor(&mut self) -> Result<Expr> {
-        self.recursive_descent_binary(&[Slash, Star], Self::unary)
-    }
-
-    fn unary(&mut self) -> Result<Expr> {
-        if let Some(op) = self.test(&[Plus, Minus]) {
-            let rhs = Box::new(self.unary()?);
-            return Ok(Expr::Unary { op, rhs });
-        }
-        if let Some(op) = self.test(&[
-            // TODO: This is false since the precedence is */, +-, <>, ==
-            Slash,
-            Star,
-            Greater,
-            GreaterEqual,
-            Less,
-            LessEqual,
-            BangEqual,
-            EqualEqual,
-        ]) {
-            // Consume the ill-formed RHS.
-            let _rhs = self.unary()?;
-            bail(
-                op.pos,
-                "while parsing an Unary expression",
-                format!("found binary operator `{}`", op.lexeme),
-            )?;
-        }
-        self.primary()
-    }
-
-    fn primary(&mut self) -> Result<Expr> {
-        use Expr::{Grouping, Literal};
-
-        macro_rules! bail_if_matches {
+    macro_rules! bail_if_matches {
             ( $( $pat:pat = $ty:expr => $res:expr ),+ $(,)? ) => {{
                 $( if let Some($pat) = self.test(&[$ty]) {
                     return Ok($res);
@@ -264,38 +285,49 @@ impl Parser {
             }};
         }
 
-        bail_if_matches! {
-            _ = False => Literal(Lit::Bool(false)),
-            _ = True => Literal(Lit::Bool(true)),
-            _ = Nil => Literal(Lit::Nil),
-            s = Str => Literal(Lit::Str(s.lexeme)),
-            n = Number => {
-                let lexeme = &n.lexeme;
-                let val = lexeme.parse();
-                if let Err(e) = &val {
-                    bail(n.pos, &format!("while parsing Number `{}`", lexeme), e)?;
-                }
-                Literal(Lit::Number(val.unwrap()))
-            },
-            lp = LeftParen => {
-                let inner = self.expression()?;
-                if self.test(&[RightParen]).is_none() {
-                    self.sync();
-                    bail(lp.pos, "while parsing a parenthesized Group", "`)` expected")?;
-                }
-                Grouping(Box::new(inner))
-            },
-        };
+    bail_if_matches! {
+        _ = False => Literal(Lit::Bool(false)),
+        _ = True => Literal(Lit::Bool(true)),
+        _ = Nil => Literal(Lit::Nil),
+        s = Str => Literal(Lit::Str(s.lexeme)),
+        n = Number => {
+            let lexeme = &n.lexeme;
+            let val = lexeme.parse();
+            if let Err(e) = &val {
+                bail(n.pos, &format!("while parsing Number `{}`", lexeme), e)?;
+            }
+            Literal(Lit::Number(val.unwrap()))
+        },
+        lp = LeftParen => {
+            let inner = self.expression()?;
+            if self.test(&[RightParen]).is_none() {
+                self.sync();
+                bail(lp.pos, "while parsing a parenthesized Group", "`)` expected")?;
+            }
+            Grouping(Box::new(inner))
+        },
+    };
 
-        if let Some(t) = self.peek() {
-            bail(
-                t.pos,
-                &format!("while parsing `{}`", &t.lexeme),
-                "unexpected token",
-            )?;
-        }
-        bail!("[L??:??] Error while parsing: token index out of range")
+    if let Some(t) = self.peek() {
+        bail(
+            t.pos,
+            &format!("while parsing `{}`", &t.lexeme),
+            "unexpected token",
+        )?;
     }
+    bail!("[L??:??] Error while parsing: token index out of range")
+}
+fn lit_bool(s: &[Token]) -> IResult<&[Token], Expr> {}
+
+*/
+fn token_of<'s>(s: &'s [Token], tys: &'s [TokenType]) -> IResult<&'s [Token], Token> {
+    verify(token, |t| tys.contains(&t.ty))(s)
+}
+
+fn token(s: &[Token]) -> IResult<&[Token], Token> {
+    s.split_first()
+        .ok_or_else(|| nom::Err::Failure(ParseError::from_error_kind(s, ErrorKind::NonEmpty)))
+        .map(|(&t, ts)| (ts, t))
 }
 
 #[allow(clippy::enum_glob_use)]
