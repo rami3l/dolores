@@ -215,40 +215,49 @@ impl Parser {
     }
 
     fn comparison(&mut self) -> Result<Expr> {
+        if let Some(op) = self.test(&[BangEqual, EqualEqual]) {
+            // Consume the ill-formed RHS.
+            let _rhs = self.comparison()?;
+            bail(
+                op.pos,
+                "while parsing an Comparison expression",
+                format!("found binary operator `{}` with no LHS", op.lexeme),
+            )?;
+        }
         self.recursive_descent_binary(&[Greater, GreaterEqual, Less, LessEqual], Self::term)
     }
 
     fn term(&mut self) -> Result<Expr> {
+        if let Some(op) = self.test(&[Greater, GreaterEqual, Less, LessEqual]) {
+            // Consume the ill-formed RHS.
+            let _rhs = self.term()?;
+            bail(
+                op.pos,
+                "while parsing an Term expression",
+                format!("found binary operator `{}` with no LHS", op.lexeme),
+            )?;
+        }
         self.recursive_descent_binary(&[Plus, Minus], Self::factor)
     }
 
     fn factor(&mut self) -> Result<Expr> {
+        // `Plus` and `Minus` are special: no LHS is completely fine for them.
         self.recursive_descent_binary(&[Slash, Star], Self::unary)
     }
 
     fn unary(&mut self) -> Result<Expr> {
-        if let Some(op) = self.test(&[Plus, Minus]) {
-            let rhs = Box::new(self.unary()?);
-            return Ok(Expr::Unary { op, rhs });
-        }
-        if let Some(op) = self.test(&[
-            // TODO: This is false since the precedence is */, +-, <>, ==
-            Slash,
-            Star,
-            Greater,
-            GreaterEqual,
-            Less,
-            LessEqual,
-            BangEqual,
-            EqualEqual,
-        ]) {
+        if let Some(op) = self.test(&[Slash, Star]) {
             // Consume the ill-formed RHS.
             let _rhs = self.unary()?;
             bail(
                 op.pos,
                 "while parsing an Unary expression",
-                format!("found binary operator `{}`", op.lexeme),
+                format!("found binary operator `{}` with no LHS", op.lexeme),
             )?;
+        }
+        if let Some(op) = self.test(&[Plus, Minus]) {
+            let rhs = Box::new(self.unary()?);
+            return Ok(Expr::Unary { op, rhs });
         }
         self.primary()
     }
@@ -369,17 +378,18 @@ mod tests {
     #[test]
     #[should_panic(expected = "found binary operator `>=`")]
     fn inequality_used_as_unary() {
-        let tokens = Lexer::new("1 + >= 2-3 == 4").analyze();
+        let tokens = Lexer::new(">= 1+2 == 3").analyze();
         let _got = Parser::new(tokens).expression().unwrap();
     }
 
     #[test]
+    #[should_panic(expected = "found binary operator `==`")]
     fn inequality_used_as_unary_sync() {
         let tokens = Lexer::new(">= 1+2 == 3").analyze();
         let mut parser = Parser::new(tokens);
         // >= (1+2)
         assert!(dbg!(parser.expression()).is_err());
         // == 3
-        assert!(dbg!(parser.expression()).is_err());
+        dbg!(parser.expression()).unwrap();
     }
 }
