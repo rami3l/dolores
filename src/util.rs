@@ -1,9 +1,9 @@
 /// Given a source string and an index, returns its (line, column) numbers in
 /// the text editor standard (index starting from 1).
 ///
-/// *Shamelessly copied from https://stackoverflow.com/a/66443805.*
+/// *Shamelessly copied from <https://stackoverflow.com/a/66443805.>*
 pub(crate) fn index_to_pos(src: &str, idx: usize) -> (usize, usize) {
-    src[..idx + 1]
+    src[..=idx]
         .lines()
         .enumerate()
         .last()

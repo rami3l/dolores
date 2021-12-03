@@ -177,13 +177,13 @@ impl Parser {
     }
 
     fn sync(&mut self) {
-        let stmt_beginning = [Class, Fun, Var, For, If, While, Print, Return];
+        let stmt_begin = [Class, Fun, Var, For, If, While, Print, Return];
         loop {
             self.advance();
             let curr = self.peek();
             let synced = curr.is_none() // Reached the end of the source.
                 || self.previous().unwrap().ty == Semicolon // Passed the end of the statement.
-                || stmt_beginning.contains(&curr.unwrap().ty); // Reached the beginning of another statement.
+                || stmt_begin.contains(&curr.unwrap().ty); // Reached the beginning of another statement.
             if synced {
                 break;
             }
@@ -232,7 +232,7 @@ impl Parser {
             return Ok(Expr::Unary { op, rhs });
         }
         if let Some(op) = self.test(&[
-            // TODO: This is false since the precedence is */, +-, <=>
+            // TODO: This is false since the precedence is */, +-, <>, ==
             Slash,
             Star,
             Greater,
@@ -280,6 +280,7 @@ impl Parser {
             lp = LeftParen => {
                 let inner = self.expression()?;
                 if self.test(&[RightParen]).is_none() {
+                    self.sync();
                     bail(lp.pos, "while parsing a parenthesized Group", "`)` expected")?;
                 }
                 Grouping(Box::new(inner))
@@ -332,8 +333,7 @@ mod tests {
     fn paren_mismatch_sync() {
         let tokens = Lexer::new("-(-1+2 / 3- 4 *5+ (6/ 7); 8 +9").analyze();
         let mut parser = Parser::new(tokens);
-        assert!(parser.expression().is_err());
-        parser.sync();
+        assert!(dbg!(parser.expression()).is_err());
         let got = parser.expression().unwrap();
         let expected = "(+ 8 9)";
         assert_eq!(expected, format!("{}", got));
@@ -342,18 +342,19 @@ mod tests {
     #[test]
     #[should_panic(expected = "found binary operator `*`")]
     fn mul_used_as_unary() {
-        let tokens = Lexer::new("1+*2-3)").analyze();
+        let tokens = Lexer::new("*1").analyze();
         let _got = Parser::new(tokens).expression().unwrap();
     }
 
     #[test]
     fn mul_used_as_unary_sync() {
-        let tokens = Lexer::new("1+*2-3").analyze();
+        let tokens = Lexer::new("* 1+2 == 3").analyze();
         let mut parser = Parser::new(tokens);
-        assert!(parser.expression().is_err());
-        parser.sync();
+        // >= (1+2)
+        assert!(dbg!(parser.expression()).is_err());
+        // +2 == 3
         let got = parser.expression().unwrap();
-        let expected = "(+ 2 3)";
+        let expected = "(== (+ 2) 3)";
         assert_eq!(expected, format!("{}", got));
     }
 
@@ -366,24 +367,19 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "found binary operator `>=`")]
     fn inequality_used_as_unary() {
-        let tokens = Lexer::new(">= 1+2").analyze();
-        let mut parser = Parser::new(tokens);
-        assert!(parser.expression().is_err());
-        parser.sync();
-        let got = parser.expression().unwrap();
-        let expected = "(+ 2 3)";
-        assert_eq!(expected, format!("{}", got));
+        let tokens = Lexer::new("1 + >= 2-3 == 4").analyze();
+        let _got = Parser::new(tokens).expression().unwrap();
     }
 
     #[test]
     fn inequality_used_as_unary_sync() {
-        let tokens = Lexer::new(">=(-1+2) 2/3").analyze();
+        let tokens = Lexer::new(">= 1+2 == 3").analyze();
         let mut parser = Parser::new(tokens);
-        assert!(parser.expression().is_err());
-        parser.sync();
-        let got = parser.expression().unwrap();
-        let expected = "(+ 2 3)";
-        assert_eq!(expected, format!("{}", got));
+        // >= (1+2)
+        assert!(dbg!(parser.expression()).is_err());
+        // == 3
+        assert!(dbg!(parser.expression()).is_err());
     }
 }
