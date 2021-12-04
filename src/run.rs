@@ -1,12 +1,30 @@
 use std::{convert::Infallible, fmt::Display, path::Path};
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use rustyline::{error::ReadlineError, Editor};
 
-use crate::{lexer::Lexer, parser::Parser};
+use crate::{
+    interpreter::Object,
+    lexer::Lexer,
+    parser::{Parser, Stmt},
+};
 
-pub(crate) fn bail(pos: (usize, usize), ctx: &str, message: impl Display) -> Result<Infallible> {
-    bail!("[L{}:{}] Error {}: {}", pos.0, pos.1, ctx, message)
+#[macro_export]
+macro_rules! bail {
+    ($pos:expr, $ctx:expr, $msg:expr $(,)?) => {
+        anyhow::bail!("{}", crate::run::error_report($pos, $ctx, $msg))
+    };
+    ($pos:expr, $ctx:expr, $msg:expr, $( $arg:expr ),+ $(,)?) => {
+        anyhow::bail!("{}", crate::run::error_report(
+            $pos,
+            $ctx,
+            format!($msg, $( $arg ),+),
+        ))
+    };
+}
+
+pub(crate) fn error_report(pos: (usize, usize), ctx: &str, msg: impl Display) -> String {
+    format!("[L{}:{}] Error {}: {}", pos.0, pos.1, ctx, msg)
 }
 
 pub(crate) fn run_file(path: impl AsRef<Path>) -> Result<()> {
@@ -27,7 +45,7 @@ pub(crate) fn run_prompt() -> Result<()> {
 fn run(src: &str) -> Result<()> {
     let tokens = Lexer::new(src).analyze();
     let mut parser = Parser::new(tokens);
-    let res = parser.run()?.eval()?;
-    println!("==> {}", res);
+    let res = parser.run()?.into_iter().try_for_each(Stmt::eval)?;
+    // println!("==> {}", res);
     Ok(())
 }

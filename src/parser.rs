@@ -1,14 +1,17 @@
 use std::fmt::Display;
 
-use anyhow::{bail, Result};
+use anyhow::{Context, Result};
+use itertools::Itertools;
+use tap::TapFallible;
 
+use crate::run::error_report;
 #[allow(clippy::enum_glob_use)]
 use crate::{
+    bail,
     lexer::{
         Token,
         TokenType::{self, *},
     },
-    run::bail,
 };
 
 #[derive(Debug, Clone)]
@@ -78,7 +81,7 @@ impl Display for Expr {
     }
 }
 
-enum Stmt {
+pub(crate) enum Stmt {
     Block(Vec<Stmt>),
     Class {
         name: Token,
@@ -108,7 +111,7 @@ enum Stmt {
     },
     Var {
         name: Token,
-        init: Expr,
+        init: Option<Expr>,
     },
     While {
         cond: Expr,
@@ -176,6 +179,12 @@ impl Parser {
         })
     }
 
+    /// Consumes a specific token or throws an error.
+    fn consume(&mut self, tys: &[TokenType], ctx: &str, msg: impl Display) -> Result<Token> {
+        self.test(tys)
+            .with_context(|| error_report(self.previous().unwrap().pos, ctx, msg))
+    }
+
     fn sync(&mut self) {
         let stmt_begin = [Class, Fun, Var, For, If, While, Print, Return];
         loop {
@@ -190,14 +199,24 @@ impl Parser {
         }
     }
 
-    // ** Recursive Descent **
-
-    pub(crate) fn run(&mut self) -> Result<Expr> {
-        self.expression()
+    pub(crate) fn many0<T>(
+        &mut self,
+        mut parser: impl FnMut(&mut Self) -> Result<T>,
+    ) -> Result<Vec<T>> {
+        std::iter::repeat_with(|| self.peek().map(|_| parser(self)))
+            .map_while(|i| i)
+            .try_collect()
     }
 
-    fn expression(&mut self) -> Result<Expr> {
-        self.equality()
+    pub(crate) fn run(&mut self) -> Result<Vec<Stmt>> {
+        self.many0(Self::stmt)
+    }
+}
+
+// ** Recursive Descent for Expr **
+impl Parser {
+    pub(crate) fn expr(&mut self) -> Result<Expr> {
+        self.equality_expr()
     }
 
     #[allow(clippy::similar_names)]
@@ -214,69 +233,73 @@ impl Parser {
         Ok(res)
     }
 
-    fn equality(&mut self) -> Result<Expr> {
-        self.recursive_descent_binary(&[BangEqual, EqualEqual], Self::comparison)
+    fn equality_expr(&mut self) -> Result<Expr> {
+        self.recursive_descent_binary(&[BangEqual, EqualEqual], Self::comparison_expr)
     }
 
-    fn comparison(&mut self) -> Result<Expr> {
+    fn comparison_expr(&mut self) -> Result<Expr> {
         if let Some(op) = self.test(&[BangEqual, EqualEqual]) {
             // Consume the ill-formed RHS.
-            let _rhs = self.comparison()?;
-            bail(
+            let _rhs = self.comparison_expr()?;
+            bail!(
                 op.pos,
                 "while parsing an Comparison expression",
-                format!("found binary operator `{}` with no LHS", op.lexeme),
-            )?;
+                "found binary operator `{}` with no LHS",
+                op.lexeme,
+            );
         }
-        self.recursive_descent_binary(&[Greater, GreaterEqual, Less, LessEqual], Self::term)
+        self.recursive_descent_binary(&[Greater, GreaterEqual, Less, LessEqual], Self::term_expr)
     }
 
-    fn term(&mut self) -> Result<Expr> {
+    fn term_expr(&mut self) -> Result<Expr> {
         if let Some(op) = self.test(&[Greater, GreaterEqual, Less, LessEqual]) {
             // Consume the ill-formed RHS.
-            let _rhs = self.term()?;
-            bail(
+            let _rhs = self.term_expr()?;
+            bail!(
                 op.pos,
                 "while parsing an Term expression",
-                format!("found binary operator `{}` with no LHS", op.lexeme),
-            )?;
+                "found binary operator `{}` with no LHS",
+                op.lexeme,
+            );
         }
-        self.recursive_descent_binary(&[Plus, Minus], Self::factor)
+        self.recursive_descent_binary(&[Plus, Minus], Self::factor_expr)
     }
 
-    fn factor(&mut self) -> Result<Expr> {
+    fn factor_expr(&mut self) -> Result<Expr> {
         // `Minus` is special: no LHS is completely fine.
         if let Some(op) = self.test(&[Plus]) {
             // Consume the ill-formed RHS.
-            let _rhs = self.factor()?;
-            bail(
+            let _rhs = self.factor_expr()?;
+            bail!(
                 op.pos,
                 "while parsing an Factor expression",
-                format!("found binary operator `{}` with no LHS", op.lexeme),
-            )?;
+                "found binary operator `{}` with no LHS",
+                op.lexeme,
+            );
         }
-        self.recursive_descent_binary(&[Slash, Star], Self::unary)
+        self.recursive_descent_binary(&[Slash, Star], Self::unary_expr)
     }
 
-    fn unary(&mut self) -> Result<Expr> {
+    fn unary_expr(&mut self) -> Result<Expr> {
         if let Some(op) = self.test(&[Slash, Star]) {
             // Consume the ill-formed RHS.
-            let _rhs = self.unary()?;
-            bail(
+            let _rhs = self.unary_expr()?;
+            bail!(
                 op.pos,
                 "while parsing an Unary expression",
-                format!("found binary operator `{}` with no LHS", op.lexeme),
-            )?;
+                "found binary operator `{}` with no LHS",
+                op.lexeme,
+            );
         }
         if let Some(op) = self.test(&[Bang, Minus]) {
-            let rhs = Box::new(self.unary()?);
+            let rhs = Box::new(self.unary_expr()?);
             return Ok(Expr::Unary { op, rhs });
         }
-        self.primary()
+        self.primary_expr()
     }
 
-    fn primary(&mut self) -> Result<Expr> {
-        use Expr::{Grouping, Literal};
+    fn primary_expr(&mut self) -> Result<Expr> {
+        use Expr::{Grouping, Literal, Variable};
 
         macro_rules! bail_if_matches {
             ( $( $pat:pat = $ty:expr => $res:expr ),+ $(,)? ) => {{
@@ -301,28 +324,79 @@ impl Parser {
                 let lexeme = &n.lexeme;
                 let val = lexeme.parse();
                 if let Err(e) = &val {
-                    bail(n.pos, &format!("while parsing Number `{}`", lexeme), e)?;
+                    bail!(n.pos, &format!("while parsing Number `{}`", lexeme), e);
                 }
                 Literal(Lit::Number(val.unwrap()))
             },
             lp = LeftParen => {
-                let inner = self.expression()?;
+                let inner = self.expr()?;
                 if self.test(&[RightParen]).is_none() {
                     self.sync();
-                    bail(lp.pos, "while parsing a parenthesized Group", "`)` expected")?;
+                    bail!(lp.pos, "while parsing a parenthesized Group", "`)` expected");
                 }
                 Grouping(Box::new(inner))
             },
+            ident = Identifier => Variable(ident)
         };
 
         if let Some(t) = self.peek() {
-            bail(
+            bail!(
                 t.pos,
                 &format!("while parsing `{}`", &t.lexeme),
                 "unexpected token",
-            )?;
+            );
         }
-        bail!("[L??:??] Error while parsing: token index out of range")
+        bail!((0, 0), "while parsing", "token index out of range");
+    }
+}
+
+// ** Recursive Descent for Stmt and Decl **
+impl Parser {
+    pub(crate) fn decl(&mut self) -> Result<Stmt> {
+        match self.test(&[Var]) {
+            Some(t) if t.ty == Var => self.var_decl(),
+            None => self.stmt(),
+            _ => unreachable!(),
+        }
+        .tap_err(|_| self.sync())
+    }
+
+    pub(crate) fn var_decl(&mut self) -> Result<Stmt> {
+        let ctx = "while parsing a Var declaration";
+        let name = self.consume(&[Identifier], ctx, "expected variable name")?;
+        let init = self.test(&[Equal]).map(|_| self.expr()).transpose()?;
+        self.consume(&[Semicolon], ctx, "expected `;` after a value")?;
+        Ok(Stmt::Var { name, init })
+    }
+
+    pub(crate) fn stmt(&mut self) -> Result<Stmt> {
+        match self.test(&[Print]) {
+            Some(t) if t.ty == Print => self.print_stmt(),
+            None => self.expression_stmt(),
+            _ => unreachable!(),
+        }
+    }
+
+    pub(crate) fn expression_stmt(&mut self) -> Result<Stmt> {
+        let expr = self.expr()?;
+        self.consume(
+            &[Semicolon],
+            "while parsing an Expression statement",
+            "expected `;` after a value",
+        )?;
+        Ok(Stmt::Expression(expr))
+    }
+
+    pub(crate) fn print_stmt(&mut self) -> Result<Stmt> {
+        let rhs = self.expr()?;
+        self.test(&[Semicolon]).with_context(|| {
+            error_report(
+                self.previous().unwrap().pos,
+                "while parsing a Print statement",
+                "expected `;` after a value",
+            )
+        })?;
+        Ok(Stmt::Print(rhs))
     }
 }
 
@@ -337,7 +411,7 @@ mod tests {
     #[test]
     fn basic() {
         let tokens = Lexer::new("1+2 / 3- 4 *5").analyze();
-        let got = Parser::new(tokens).expression().unwrap();
+        let got = Parser::new(tokens).expr().unwrap();
         let expected = "(- (+ 1 (/ 2 3)) (* 4 5))";
         assert_eq!(expected, format!("{}", got));
     }
@@ -345,7 +419,7 @@ mod tests {
     #[test]
     fn parens() {
         let tokens = Lexer::new("-(-1+2 / 3- 4 *5+ (6/ 7))").analyze();
-        let got = Parser::new(tokens).expression().unwrap();
+        let got = Parser::new(tokens).expr().unwrap();
         let expected = "(- (group (+ (- (+ (- 1) (/ 2 3)) (* 4 5)) (group (/ 6 7)))))";
         assert_eq!(expected, format!("{}", got));
     }
@@ -354,15 +428,15 @@ mod tests {
     #[should_panic(expected = "`)` expected")]
     fn paren_mismatch() {
         let tokens = Lexer::new("-(-1+2 / 3- 4 *5+ (6/ 7)").analyze();
-        let _got = Parser::new(tokens).expression().unwrap();
+        let _got = Parser::new(tokens).expr().unwrap();
     }
 
     #[test]
     fn paren_mismatch_sync() {
         let tokens = Lexer::new("-(-1+2 / 3- 4 *5+ (6/ 7); 8 +9").analyze();
         let mut parser = Parser::new(tokens);
-        assert!(dbg!(parser.expression()).is_err());
-        let got = parser.expression().unwrap();
+        assert!(dbg!(parser.expr()).is_err());
+        let got = parser.expr().unwrap();
         let expected = "(+ 8 9)";
         assert_eq!(expected, format!("{}", got));
     }
@@ -371,7 +445,7 @@ mod tests {
     #[should_panic(expected = "found binary operator `*`")]
     fn mul_used_as_unary() {
         let tokens = Lexer::new("*1").analyze();
-        let _got = Parser::new(tokens).expression().unwrap();
+        let _got = Parser::new(tokens).expr().unwrap();
     }
 
     #[test]
@@ -379,9 +453,9 @@ mod tests {
         let tokens = Lexer::new("* 1-2 == 3").analyze();
         let mut parser = Parser::new(tokens);
         // >= (1+2)
-        assert!(dbg!(parser.expression()).is_err());
+        assert!(dbg!(parser.expr()).is_err());
         // +2 == 3
-        let got = parser.expression().unwrap();
+        let got = parser.expr().unwrap();
         let expected = "(== (- 2) 3)";
         assert_eq!(expected, format!("{}", got));
     }
@@ -389,7 +463,7 @@ mod tests {
     #[test]
     fn inequality() {
         let tokens = Lexer::new("-(-1+2) >=3- 4 *5+ (6/ 7)").analyze();
-        let got = Parser::new(tokens).expression().unwrap();
+        let got = Parser::new(tokens).expr().unwrap();
         let expected = "(>= (- (group (+ (- 1) 2))) (+ (- 3 (* 4 5)) (group (/ 6 7))))";
         assert_eq!(expected, format!("{}", got));
     }
@@ -398,7 +472,7 @@ mod tests {
     #[should_panic(expected = "found binary operator `>=`")]
     fn inequality_used_as_unary() {
         let tokens = Lexer::new(">= 1+2 == 3").analyze();
-        let _got = Parser::new(tokens).expression().unwrap();
+        let _got = Parser::new(tokens).expr().unwrap();
     }
 
     #[test]
@@ -407,8 +481,8 @@ mod tests {
         let tokens = Lexer::new(">= 1+2 == 3").analyze();
         let mut parser = Parser::new(tokens);
         // >= (1+2)
-        assert!(dbg!(parser.expression()).is_err());
+        assert!(dbg!(parser.expr()).is_err());
         // == 3
-        dbg!(parser.expression()).unwrap();
+        dbg!(parser.expr()).unwrap();
     }
 }

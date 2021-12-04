@@ -5,7 +5,7 @@ use tap::prelude::*;
 
 use crate::{
     lexer::TokenType,
-    parser::{Expr, Lit},
+    parser::{Expr, Lit, Stmt},
 };
 
 #[derive(Debug, Clone)]
@@ -143,6 +143,33 @@ impl Expr {
     }
 }
 
+impl Stmt {
+    pub fn eval(self) -> Result<()> {
+        match self {
+            Stmt::Block(_) => todo!(),
+            Stmt::Class {
+                name,
+                superclass,
+                methods,
+            } => todo!(),
+            Stmt::Expression(expr) => {
+                expr.eval()?;
+            }
+            Stmt::Function { name, params, body } => todo!(),
+            Stmt::If {
+                cond,
+                then_stmt,
+                else_stmt,
+            } => todo!(),
+            Stmt::Print(expr) => println!("{}", expr.eval()?),
+            Stmt::Return { kw, val } => todo!(),
+            Stmt::Var { name, init } => todo!(),
+            Stmt::While { cond, body } => todo!(),
+        }
+        Ok(())
+    }
+}
+
 #[allow(clippy::enum_glob_use)]
 #[cfg(test)]
 mod tests {
@@ -151,22 +178,22 @@ mod tests {
     use super::*;
     use crate::{lexer::Lexer, parser::Parser};
 
-    fn assert_eval(src: &str, expected: &str) {
+    fn assert_expr_eval(src: &str, expected: &str) {
         let tokens = Lexer::new(src).analyze();
-        let expr = Parser::new(tokens).run().unwrap().eval().unwrap();
+        let expr = Parser::new(tokens).expr().unwrap().eval().unwrap();
         let got = format!("{}", expr);
         assert_eq!(got, expected);
     }
 
     #[test]
     fn basic() {
-        assert_eval("2 +2", "4");
-        assert_eval("-6 *(-4+ -3) == 6*4 + 2  *((((9))))", "true");
-        assert_eval(
+        assert_expr_eval("2 +2", "4");
+        assert_expr_eval("-6 *(-4+ -3) == 6*4 + 2  *((((9))))", "true");
+        assert_expr_eval(
             "4/1 - 4/3 + 4/5 - 4/7 + 4/9 - 4/11 + 4/13 - 4/15 + 4/17 - 4/19 + 4/21 - 4/23",
             "3.058402765927333",
         );
-        assert_eval(
+        assert_expr_eval(
             "3 + 4/(2*3*4) - 4/(4*5*6) + 4/(6*7*8) - 4/(8*9*10) + 4/(10*11*12) - 4/(12*13*14)",
             "3.1408813408813407",
         );
