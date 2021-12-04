@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-enum Expr {
+pub(crate) enum Expr {
     Assign {
         name: Token,
         val: Box<Expr>,
@@ -117,11 +117,11 @@ enum Stmt {
 }
 
 #[derive(Debug, Clone)]
-enum Lit {
+pub(crate) enum Lit {
+    Nil,
     Bool(bool),
     Number(f64),
     Str(String),
-    Nil,
 }
 
 impl Display for Lit {
@@ -135,13 +135,13 @@ impl Display for Lit {
     }
 }
 
-struct Parser {
+pub(crate) struct Parser {
     tokens: Vec<Token>,
     idx: usize,
 }
 
 impl Parser {
-    fn new(tokens: impl Iterator<Item = Token>) -> Self {
+    pub fn new(tokens: impl Iterator<Item = Token>) -> Self {
         Parser {
             tokens: tokens.collect(),
             idx: 0,
@@ -192,6 +192,10 @@ impl Parser {
 
     // ** Recursive Descent **
 
+    pub(crate) fn run(&mut self) -> Result<Expr> {
+        self.expression()
+    }
+
     fn expression(&mut self) -> Result<Expr> {
         self.equality()
     }
@@ -241,7 +245,16 @@ impl Parser {
     }
 
     fn factor(&mut self) -> Result<Expr> {
-        // `Plus` and `Minus` are special: no LHS is completely fine for them.
+        // `Minus` is special: no LHS is completely fine.
+        if let Some(op) = self.test(&[Plus]) {
+            // Consume the ill-formed RHS.
+            let _rhs = self.factor()?;
+            bail(
+                op.pos,
+                "while parsing an Factor expression",
+                format!("found binary operator `{}` with no LHS", op.lexeme),
+            )?;
+        }
         self.recursive_descent_binary(&[Slash, Star], Self::unary)
     }
 
@@ -255,7 +268,7 @@ impl Parser {
                 format!("found binary operator `{}` with no LHS", op.lexeme),
             )?;
         }
-        if let Some(op) = self.test(&[Plus, Minus]) {
+        if let Some(op) = self.test(&[Bang, Minus]) {
             let rhs = Box::new(self.unary()?);
             return Ok(Expr::Unary { op, rhs });
         }
@@ -357,13 +370,13 @@ mod tests {
 
     #[test]
     fn mul_used_as_unary_sync() {
-        let tokens = Lexer::new("* 1+2 == 3").analyze();
+        let tokens = Lexer::new("* 1-2 == 3").analyze();
         let mut parser = Parser::new(tokens);
         // >= (1+2)
         assert!(dbg!(parser.expression()).is_err());
         // +2 == 3
         let got = parser.expression().unwrap();
-        let expected = "(== (+ 2) 3)";
+        let expected = "(== (- 2) 3)";
         assert_eq!(expected, format!("{}", got));
     }
 

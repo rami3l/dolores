@@ -9,7 +9,6 @@ use crate::run::{run_file, run_prompt};
     version = clap::crate_version!(),
     author = clap::crate_authors!(),
     about = clap::crate_description!(),
-    setting = AppSettings::SubcommandRequiredElseHelp,
 )]
 #[allow(clippy::struct_excessive_bools)]
 pub struct Dolores {

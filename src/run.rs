@@ -3,6 +3,8 @@ use std::{convert::Infallible, fmt::Display, path::Path};
 use anyhow::{bail, Result};
 use rustyline::{error::ReadlineError, Editor};
 
+use crate::{lexer::Lexer, parser::Parser};
+
 pub(crate) fn bail(pos: (usize, usize), ctx: &str, message: impl Display) -> Result<Infallible> {
     bail!("[L{}:{}] Error {}: {}", pos.0, pos.1, ctx, message)
 }
@@ -23,5 +25,9 @@ pub(crate) fn run_prompt() -> Result<()> {
 }
 
 fn run(src: &str) -> Result<()> {
-    todo!("should read source file: {}", src);
+    let tokens = Lexer::new(src).analyze();
+    let mut parser = Parser::new(tokens);
+    let res = parser.run()?.eval();
+    println!("=> {:?}", res);
+    Ok(())
 }
