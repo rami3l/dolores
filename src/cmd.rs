@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{AppSettings, Parser};
+use clap::Parser;
 
 use crate::run::{run_file, run_prompt};
 

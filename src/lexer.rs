@@ -26,7 +26,7 @@ impl<'s> Lexer<'s> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub(crate) struct Token {
+pub struct Token {
     pub ty: TokenType,
     pub lexeme: String,
     /// The `(line_num, column_num)` pair of the starting position of this
@@ -42,7 +42,7 @@ impl Display for Token {
 
 #[derive(Logos, Debug, PartialEq, Clone, Copy)]
 #[repr(u16)]
-pub(crate) enum TokenType {
+pub enum TokenType {
     // Single-character tokens.
     #[token("(")]
     LeftParen,
@@ -178,7 +178,7 @@ pub(crate) enum TokenType {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use super::{TokenType::*, *};
+    use super::*;
 
     fn lex(src: &str) -> Vec<(TokenType, String)> {
         Lexer::new(src)

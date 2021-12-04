@@ -1,10 +1,9 @@
-use std::{convert::Infallible, fmt::Display, path::Path};
+use std::{fmt::Display, path::Path};
 
 use anyhow::Result;
 use rustyline::{error::ReadlineError, Editor};
 
 use crate::{
-    interpreter::Object,
     lexer::Lexer,
     parser::{Parser, Stmt},
 };
@@ -12,10 +11,10 @@ use crate::{
 #[macro_export]
 macro_rules! bail {
     ($pos:expr, $ctx:expr, $msg:expr $(,)?) => {
-        anyhow::bail!("{}", crate::run::error_report($pos, $ctx, $msg))
+        anyhow::bail!("{}", crate::run::report($pos, $ctx, $msg))
     };
     ($pos:expr, $ctx:expr, $msg:expr, $( $arg:expr ),+ $(,)?) => {
-        anyhow::bail!("{}", crate::run::error_report(
+        anyhow::bail!("{}", crate::run::report(
             $pos,
             $ctx,
             format!($msg, $( $arg ),+),
@@ -23,7 +22,7 @@ macro_rules! bail {
     };
 }
 
-pub(crate) fn error_report(pos: (usize, usize), ctx: &str, msg: impl Display) -> String {
+pub(crate) fn report(pos: (usize, usize), ctx: &str, msg: impl Display) -> String {
     format!("[L{}:{}] Error {}: {}", pos.0, pos.1, ctx, msg)
 }
 

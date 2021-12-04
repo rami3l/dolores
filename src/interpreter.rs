@@ -1,3 +1,5 @@
+pub mod env;
+
 use std::fmt::Display;
 
 use anyhow::{bail, Result};
@@ -9,7 +11,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub(crate) enum Object {
+pub enum Object {
     Nil,
     Bool(bool),
     Number(f64),
