@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use super::Object;
 
-type RcCell<T> = Rc<RefCell<T>>;
+pub type RcCell<T> = Rc<RefCell<T>>;
 
 pub fn rc_cell_new<T>(inner: T) -> RcCell<T> {
     Rc::new(RefCell::new(inner))
@@ -28,17 +28,17 @@ impl Env {
         }
     }
 
-    fn lookup_with_env(this: RcCell<Env>, sym: &str) -> Option<(RcCell<Env>, Object)> {
-        if let Some(obj) = Rc::clone(&this).borrow().dict.get(sym) {
-            return Some((this, obj.clone()));
+    fn lookup_with_env(this: &RcCell<Env>, sym: &str) -> Option<(RcCell<Env>, Object)> {
+        if let Some(obj) = Rc::clone(this).borrow().dict.get(sym) {
+            return Some((Rc::clone(this), obj.clone()));
         }
         this.borrow()
             .outer
             .as_ref()
-            .and_then(|o| Self::lookup_with_env(Rc::clone(o), sym))
+            .and_then(|o| Self::lookup_with_env(o, sym))
     }
 
-    pub fn lookup(this: RcCell<Env>, sym: &str) -> Option<Object> {
+    pub fn lookup(this: &RcCell<Env>, sym: &str) -> Option<Object> {
         Self::lookup_with_env(this, sym).map(|(_, obj)| obj)
     }
 
@@ -46,9 +46,9 @@ impl Env {
         self.dict.insert(sym.into(), defn)
     }
 
-    pub fn set_val(this: RcCell<Env>, sym: &str, defn: Object) {
-        Self::lookup_with_env(Rc::clone(&this), sym)
-            .map_or(this, |(that, _)| that)
+    pub fn set_val(this: &RcCell<Env>, sym: &str, defn: Object) {
+        Self::lookup_with_env(this, sym)
+            .map_or_else(|| Rc::clone(this), |(that, _)| that)
             .borrow_mut()
             .insert_val(sym, defn);
     }

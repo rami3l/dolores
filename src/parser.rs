@@ -1,5 +1,5 @@
-pub mod expr;
-pub mod stmt;
+pub(crate) mod expr;
+pub(crate) mod stmt;
 
 use std::fmt::Display;
 

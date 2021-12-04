@@ -4,6 +4,7 @@ use anyhow::Result;
 use rustyline::{error::ReadlineError, Editor};
 
 use crate::{
+    interpreter::env::{rc_cell_new, Env},
     lexer::Lexer,
     parser::{Parser, Stmt},
 };
@@ -42,9 +43,13 @@ pub(crate) fn run_prompt() -> Result<()> {
 }
 
 fn run(src: &str) -> Result<()> {
+    let env = rc_cell_new(Env::default());
     let tokens = Lexer::new(src).analyze();
     let mut parser = Parser::new(tokens);
-    let res = parser.run()?.into_iter().try_for_each(Stmt::eval)?;
+    let res = parser
+        .run()?
+        .into_iter()
+        .try_for_each(|stmt| stmt.eval(&env))?;
     // println!("==> {}", res);
     Ok(())
 }

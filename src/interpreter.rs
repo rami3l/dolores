@@ -1,91 +1,29 @@
-pub mod env;
+pub(crate) mod env;
+pub(crate) mod object;
 
-use std::fmt::Display;
+use std::{fmt::Display, rc::Rc};
 
 use anyhow::{bail, Result};
 use tap::prelude::*;
 
+pub use self::{
+    env::{Env, RcCell},
+    object::Object,
+};
 use crate::{
     lexer::TokenType,
     parser::{Expr, Lit, Stmt},
 };
 
-#[derive(Debug, Clone)]
-pub enum Object {
-    Nil,
-    Bool(bool),
-    Number(f64),
-    Str(String),
-}
-
-impl Display for Object {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Object::Nil => write!(f, "nil"),
-            Object::Bool(b) => write!(f, "{}", b),
-            Object::Number(n) => write!(f, "{}", n.to_string().trim_end_matches(".0")),
-            Object::Str(s) => write!(f, r#""{}""#, s),
-        }
-    }
-}
-
-impl PartialEq for Object {
-    fn eq(&self, other: &Self) -> bool {
-        #[allow(clippy::enum_glob_use)]
-        use Object::*;
-
-        match (self, other) {
-            (Nil, Nil) => true,
-            (Nil, _) => false,
-            (Bool(l0), Bool(r0)) => l0 == r0,
-            (Number(l0), Number(r0)) => l0 == r0,
-            (Str(l0), Str(r0)) => l0 == r0,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl From<Lit> for Object {
-    fn from(lit: Lit) -> Self {
-        match lit {
-            Lit::Nil => Object::Nil,
-            Lit::Bool(b) => Object::Bool(b),
-            Lit::Number(n) => Object::Number(n),
-            Lit::Str(s) => Object::Str(s),
-        }
-    }
-}
-
-impl From<Object> for bool {
-    fn from(obj: Object) -> Self {
-        !matches!(obj, Object::Nil | Object::Bool(false))
-    }
-}
-
-impl TryFrom<Object> for f64 {
-    type Error = anyhow::Error;
-
-    fn try_from(obj: Object) -> Result<Self, Self::Error> {
-        match obj {
-            Object::Number(n) => Ok(n),
-            Object::Bool(b) => Ok(f64::from(b as u8)),
-            obj => bail!(
-                "Runtime Error: object `{:?}` cannot be converted to Number",
-                obj
-            ),
-        }
-    }
-}
-
 impl Expr {
-    pub fn eval(self) -> Result<Object> {
+    pub fn eval(self, env: &RcCell<Env>) -> Result<Object> {
         #[allow(clippy::enum_glob_use)]
         use Object::*;
         use TokenType as Tk;
 
         match self {
             Expr::Assign { name, val } => todo!(),
-            Expr::Binary { lhs, op, rhs } => Ok(match (op.ty, lhs.eval()?, rhs.eval()?) {
+            Expr::Binary { lhs, op, rhs } => Ok(match (op.ty, lhs.eval(env)?, rhs.eval(env)?) {
                 (Tk::Plus, Str(lhs), Str(rhs)) => Str(lhs + &rhs),
                 (Tk::Plus, Str(lhs), rhs) => Str(lhs + &format!("{}", rhs)),
                 (Tk::Plus, lhs, Str(rhs)) => Str(format!("{}", lhs) + &rhs),
@@ -129,15 +67,15 @@ impl Expr {
                 args,
             } => todo!(),
             Expr::Get { obj, name } => todo!(),
-            Expr::Grouping(expr) => expr.eval(),
+            Expr::Grouping(expr) => expr.eval(env),
             Expr::Literal(lit) => Ok(lit.into()),
             Expr::Logical { lhs, op, rhs } => todo!(),
             Expr::Set { obj, name, to } => todo!(),
             Expr::Super { kw, method } => todo!(),
             Expr::This(_) => todo!(),
             Expr::Unary { op, rhs } => match op.ty {
-                Tk::Bang => Ok(Object::Bool(!rhs.eval()?.try_into()?)),
-                Tk::Minus => Ok(Object::Number(-rhs.eval()?.try_into()?)),
+                Tk::Bang => Ok(Object::Bool(!rhs.eval(env)?.try_into()?)),
+                Tk::Minus => Ok(Object::Number(-rhs.eval(env)?.try_into()?)),
                 _ => unreachable!(),
             },
             Expr::Variable(_) => todo!(),
@@ -146,7 +84,7 @@ impl Expr {
 }
 
 impl Stmt {
-    pub fn eval(self) -> Result<()> {
+    pub fn eval(self, env: &RcCell<Env>) -> Result<()> {
         match self {
             Stmt::Block(_) => todo!(),
             Stmt::Class {
@@ -155,7 +93,7 @@ impl Stmt {
                 methods,
             } => todo!(),
             Stmt::Expression(expr) => {
-                expr.eval()?;
+                expr.eval(env)?;
             }
             Stmt::Function { name, params, body } => todo!(),
             Stmt::If {
@@ -163,7 +101,7 @@ impl Stmt {
                 then_stmt,
                 else_stmt,
             } => todo!(),
-            Stmt::Print(expr) => println!("{}", expr.eval()?),
+            Stmt::Print(expr) => println!("{}", expr.eval(env)?),
             Stmt::Return { kw, val } => todo!(),
             Stmt::Var { name, init } => todo!(),
             Stmt::While { cond, body } => todo!(),
@@ -178,11 +116,12 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::{lexer::Lexer, parser::Parser};
+    use crate::{interpreter::env::rc_cell_new, lexer::Lexer, parser::Parser};
 
     fn assert_expr_eval(src: &str, expected: &str) {
+        let env = rc_cell_new(Env::default());
         let tokens = Lexer::new(src).analyze();
-        let expr = Parser::new(tokens).expr().unwrap().eval().unwrap();
+        let expr = Parser::new(tokens).expr().unwrap().eval(&env).unwrap();
         let got = format!("{}", expr);
         assert_eq!(got, expected);
     }
