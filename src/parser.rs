@@ -290,7 +290,13 @@ impl Parser {
             _ = False => Literal(Lit::Bool(false)),
             _ = True => Literal(Lit::Bool(true)),
             _ = Nil => Literal(Lit::Nil),
-            s = Str => Literal(Lit::Str(s.lexeme)),
+            s = Str => Literal(Lit::Str({
+                s.lexeme
+                    .strip_prefix('"')
+                    .and_then(|s| s.strip_suffix('"'))
+                    .unwrap()
+                    .into()
+            })),
             n = Number => {
                 let lexeme = &n.lexeme;
                 let val = lexeme.parse();
