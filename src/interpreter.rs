@@ -112,8 +112,7 @@ impl Stmt {
                     .map(|init| init.eval(env))
                     .transpose()?
                     .unwrap_or_default();
-                env.borrow_mut().insert_val(&name.lexeme, dbg!(init));
-                dbg!(env);
+                env.borrow_mut().insert_val(&name.lexeme, init);
             }
             Stmt::While { cond, body } => todo!(),
         }
@@ -127,10 +126,10 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::{interpreter::env::rc_cell_new, lexer::Lexer, parser::Parser};
+    use crate::{lexer::Lexer, parser::Parser};
 
     fn assert_expr_eval(src: &str, expected: &str) {
-        let env = rc_cell_new(Env::default());
+        let env = Env::default().shared();
         let tokens = Lexer::new(src).analyze();
         let expr = Parser::new(tokens).expr().unwrap().eval(&env).unwrap();
         let got = format!("{}", expr);

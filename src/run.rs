@@ -4,7 +4,7 @@ use anyhow::Result;
 use rustyline::{error::ReadlineError, Editor};
 
 use crate::{
-    interpreter::env::{rc_cell_new, Env},
+    interpreter::{env::Env, RcCell},
     lexer::Lexer,
     parser::{Parser, Stmt},
 };
@@ -28,28 +28,29 @@ pub(crate) fn report(pos: (usize, usize), ctx: &str, msg: impl Display) -> Strin
 }
 
 pub(crate) fn run_file(path: impl AsRef<Path>) -> Result<()> {
+    let env = Env::default().shared();
     let contents = std::fs::read_to_string(path)?;
-    run(&contents)
+    run(&contents, &env)
 }
 
 pub(crate) fn run_prompt() -> Result<()> {
+    let env = Env::default().shared();
     let mut reader = Editor::<()>::new();
     loop {
         match reader.readline(">>> ") {
             Err(ReadlineError::Interrupted | ReadlineError::Eof) => break Ok(()),
-            ln => run(&ln?).unwrap_or_else(|e| println!("{}", e)),
+            ln => run(&ln?, &env).unwrap_or_else(|e| println!("{}", e)),
         }
     }
 }
 
-fn run(src: &str) -> Result<()> {
-    let env = rc_cell_new(Env::default());
+fn run(src: &str, env: &RcCell<Env>) -> Result<()> {
     let tokens = Lexer::new(src).analyze();
     let mut parser = Parser::new(tokens);
-    let res = parser.run()?.into_iter().try_for_each(|stmt| {
-        dbg!(&env);
-        stmt.eval(&env)
-    })?;
+    parser
+        .run()?
+        .into_iter()
+        .try_for_each(|stmt| stmt.eval(&env))?;
     // println!("==> {}", res);
     Ok(())
 }
