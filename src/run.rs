@@ -17,7 +17,7 @@ pub(crate) fn run_file(path: impl AsRef<Path>) -> Result<()> {
 pub(crate) fn run_prompt() -> Result<()> {
     let mut reader = Editor::<()>::new();
     loop {
-        match reader.readline("> ") {
+        match reader.readline(">>> ") {
             Err(ReadlineError::Interrupted | ReadlineError::Eof) => break Ok(()),
             ln => run(&ln?).unwrap_or_else(|e| println!("{}", e)),
         }
@@ -27,7 +27,7 @@ pub(crate) fn run_prompt() -> Result<()> {
 fn run(src: &str) -> Result<()> {
     let tokens = Lexer::new(src).analyze();
     let mut parser = Parser::new(tokens);
-    let res = parser.run()?.eval();
-    println!("=> {:?}", res);
+    let res = parser.run()?.eval()?;
+    println!("==> {}", res);
     Ok(())
 }

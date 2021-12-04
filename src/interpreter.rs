@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use anyhow::{bail, Result};
 use tap::prelude::*;
 
@@ -12,6 +14,17 @@ pub(crate) enum Object {
     Bool(bool),
     Number(f64),
     Str(String),
+}
+
+impl Display for Object {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Object::Nil => write!(f, "nil"),
+            Object::Bool(b) => write!(f, "{}", b),
+            Object::Number(n) => write!(f, "{}", n.to_string().trim_end_matches(".0")),
+            Object::Str(s) => write!(f, r#""{}""#, s),
+        }
+    }
 }
 
 impl PartialEq for Object {
