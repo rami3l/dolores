@@ -83,47 +83,44 @@ impl Expr {
 
         match self {
             Expr::Assign { name, val } => todo!(),
-            Expr::Binary { lhs, op, rhs } => {
-                let (lhs, rhs) = (lhs.eval()?, rhs.eval()?);
-                Ok(match (op.ty, lhs, rhs) {
-                    (Tk::Plus, Str(lhs), Str(rhs)) => Str(lhs + &rhs),
-                    (Tk::Plus, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
-                        Number(lhs.try_conv::<f64>()? + rhs.try_conv::<f64>()?)
-                    }
-                    (Tk::Minus, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
-                        Number(lhs.try_conv::<f64>()? - rhs.try_conv::<f64>()?)
-                    }
-                    (Tk::Star, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
-                        Number(lhs.try_conv::<f64>()? * rhs.try_conv::<f64>()?)
-                    }
-                    (Tk::Slash, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
-                        Number(lhs.try_conv::<f64>()? / rhs.try_conv::<f64>()?)
-                    }
-                    (Tk::Greater, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
-                        Bool(lhs.try_conv::<f64>()? > rhs.try_conv::<f64>()?)
-                    }
-                    (
-                        Tk::GreaterEqual,
-                        lhs @ (Bool(_) | Number(_)),
-                        rhs @ (Bool(_) | Number(_)),
-                    ) => Bool(lhs.try_conv::<f64>()? >= rhs.try_conv::<f64>()?),
-                    (Tk::Less, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
-                        Bool(lhs.try_conv::<f64>()? < rhs.try_conv::<f64>()?)
-                    }
-                    (Tk::LessEqual, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
-                        Bool(lhs.try_conv::<f64>()? <= rhs.try_conv::<f64>()?)
-                    }
-                    (Tk::EqualEqual, lhs, rhs) => Bool(lhs == rhs),
-                    (Tk::BangEqual, lhs, rhs) => Bool(lhs != rhs),
+            Expr::Binary { lhs, op, rhs } => Ok(match (op.ty, lhs.eval()?, rhs.eval()?) {
+                (Tk::Plus, Str(lhs), Str(rhs)) => Str(lhs + &rhs),
+                (Tk::Plus, Str(lhs), rhs) => Str(lhs + &format!("{}", rhs)),
+                (Tk::Plus, lhs, Str(rhs)) => Str(format!("{}", lhs) + &rhs),
+                (Tk::Plus, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
+                    Number(lhs.try_conv::<f64>()? + rhs.try_conv::<f64>()?)
+                }
+                (Tk::Minus, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
+                    Number(lhs.try_conv::<f64>()? - rhs.try_conv::<f64>()?)
+                }
+                (Tk::Star, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
+                    Number(lhs.try_conv::<f64>()? * rhs.try_conv::<f64>()?)
+                }
+                (Tk::Slash, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
+                    Number(lhs.try_conv::<f64>()? / rhs.try_conv::<f64>()?)
+                }
+                (Tk::Greater, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
+                    Bool(lhs.try_conv::<f64>()? > rhs.try_conv::<f64>()?)
+                }
+                (Tk::GreaterEqual, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
+                    Bool(lhs.try_conv::<f64>()? >= rhs.try_conv::<f64>()?)
+                }
+                (Tk::Less, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
+                    Bool(lhs.try_conv::<f64>()? < rhs.try_conv::<f64>()?)
+                }
+                (Tk::LessEqual, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
+                    Bool(lhs.try_conv::<f64>()? <= rhs.try_conv::<f64>()?)
+                }
+                (Tk::EqualEqual, lhs, rhs) => Bool(lhs == rhs),
+                (Tk::BangEqual, lhs, rhs) => Bool(lhs != rhs),
 
-                    (op, lhs, rhs) => bail!(
-                        "Runtime Error: binary operator `{:?}` undefined for ({:?}, {:?})",
-                        op,
-                        lhs,
-                        rhs
-                    ),
-                })
-            }
+                (op, lhs, rhs) => bail!(
+                    "Runtime Error: binary operator `{:?}` undefined for ({:?}, {:?})",
+                    op,
+                    lhs,
+                    rhs
+                ),
+            }),
             Expr::Call {
                 callee,
                 paren,
