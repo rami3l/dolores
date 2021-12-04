@@ -46,10 +46,10 @@ fn run(src: &str) -> Result<()> {
     let env = rc_cell_new(Env::default());
     let tokens = Lexer::new(src).analyze();
     let mut parser = Parser::new(tokens);
-    let res = parser
-        .run()?
-        .into_iter()
-        .try_for_each(|stmt| stmt.eval(&env))?;
+    let res = parser.run()?.into_iter().try_for_each(|stmt| {
+        dbg!(&env);
+        stmt.eval(&env)
+    })?;
     // println!("==> {}", res);
     Ok(())
 }

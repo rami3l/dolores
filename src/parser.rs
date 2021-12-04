@@ -204,4 +204,20 @@ mod tests {
         let expected = ["(var foo)"];
         izip!(got, expected).for_each(|(got, expected)| assert_eq!(expected, format!("{}", got)));
     }
+
+    #[test]
+    fn var_decl_no_eq() {
+        let tokens = Lexer::new("var foo 42;").analyze();
+        let got = Parser::new(tokens).run().unwrap();
+        let expected = ["(var foo)"];
+        izip!(got, expected).for_each(|(got, expected)| assert_eq!(expected, format!("{}", got)));
+    }
+
+    #[test]
+    fn var_decl_no_init() {
+        let tokens = Lexer::new("var foo =;").analyze();
+        let got = Parser::new(tokens).run().unwrap();
+        let expected = ["(var foo)"];
+        izip!(got, expected).for_each(|(got, expected)| assert_eq!(expected, format!("{}", got)));
+    }
 }

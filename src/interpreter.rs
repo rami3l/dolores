@@ -1,9 +1,9 @@
 pub(crate) mod env;
 pub(crate) mod object;
 
-use std::{fmt::Display, rc::Rc};
+use std::fmt::format;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use tap::prelude::*;
 
 pub use self::{
@@ -78,7 +78,11 @@ impl Expr {
                 Tk::Minus => Ok(Object::Number(-rhs.eval(env)?.try_into()?)),
                 _ => unreachable!(),
             },
-            Expr::Variable(_) => todo!(),
+            Expr::Variable(ident) => {
+                let ident = &ident.lexeme;
+                Env::lookup(env, ident)
+                    .with_context(|| format!("Runtime Error: identifier `{}` is undefined", ident))
+            }
         }
     }
 }
@@ -103,7 +107,14 @@ impl Stmt {
             } => todo!(),
             Stmt::Print(expr) => println!("{}", expr.eval(env)?),
             Stmt::Return { kw, val } => todo!(),
-            Stmt::Var { name, init } => todo!(),
+            Stmt::Var { name, init } => {
+                let init = init
+                    .map(|init| init.eval(env))
+                    .transpose()?
+                    .unwrap_or_default();
+                env.borrow_mut().insert_val(&name.lexeme, dbg!(init));
+                dbg!(env);
+            }
             Stmt::While { cond, body } => todo!(),
         }
         Ok(())

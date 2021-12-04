@@ -28,28 +28,49 @@ impl Env {
         }
     }
 
-    fn lookup_with_env(this: &RcCell<Env>, sym: &str) -> Option<(RcCell<Env>, Object)> {
-        if let Some(obj) = Rc::clone(this).borrow().dict.get(sym) {
+    fn lookup_with_env(this: &RcCell<Env>, ident: &str) -> Option<(RcCell<Env>, Object)> {
+        if let Some(obj) = Rc::clone(this).borrow().dict.get(ident) {
             return Some((Rc::clone(this), obj.clone()));
         }
         this.borrow()
             .outer
             .as_ref()
-            .and_then(|o| Self::lookup_with_env(o, sym))
+            .and_then(|o| Self::lookup_with_env(o, ident))
     }
 
-    pub fn lookup(this: &RcCell<Env>, sym: &str) -> Option<Object> {
-        Self::lookup_with_env(this, sym).map(|(_, obj)| obj)
+    pub fn lookup(this: &RcCell<Env>, ident: &str) -> Option<Object> {
+        Self::lookup_with_env(this, ident).map(|(_, obj)| obj)
     }
 
-    pub fn insert_val(&mut self, sym: &str, defn: Object) -> Option<Object> {
-        self.dict.insert(sym.into(), defn)
+    pub fn insert_val(&mut self, ident: &str, defn: Object) {
+        self.dict.insert(ident.into(), defn);
     }
 
-    pub fn set_val(this: &RcCell<Env>, sym: &str, defn: Object) {
-        Self::lookup_with_env(this, sym)
+    pub fn set_val(this: &RcCell<Env>, ident: &str, defn: Object) {
+        Self::lookup_with_env(this, ident)
             .map_or_else(|| Rc::clone(this), |(that, _)| that)
             .borrow_mut()
-            .insert_val(sym, defn);
+            .insert_val(ident, defn);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::lexer::Lexer;
+
+    #[test]
+    fn basic() {
+        let outer = rc_cell_new(Env::default());
+        let inner = rc_cell_new(Env::from_outer(&outer));
+        outer.borrow_mut().insert_val("a", Object::Number(42.));
+        Env::set_val(&inner, "a", Object::Bool(false));
+        Env::set_val(&inner, "foo", Object::Number(114.));
+        dbg!(&inner);
+        dbg!(Env::lookup_with_env(&inner, "a"));
+        dbg!(Env::lookup_with_env(&inner, "foo"));
+        todo!()
     }
 }
