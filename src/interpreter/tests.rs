@@ -32,9 +32,10 @@ fn assert_eval(pairs: &[(&str, &str)]) -> Result<()> {
 }
 
 #[test]
-fn expr_calculator() -> Result<()> {
+fn calculator() -> Result<()> {
     assert_eval(&[
         ("2 +2", "4"),
+        ("11.4 + 5.14 / 19198.10", "11.400267734827926"),
         ("-6 *(-4+ -3) == 6*4 + 2  *((((9))))", "true"),
         (
             indoc! {"
@@ -55,5 +56,24 @@ fn expr_calculator() -> Result<()> {
             "},
             "3.1408813408813407",
         ),
+    ])
+}
+
+#[test]
+fn vars_and_blocks() -> Result<()> {
+    assert_eval(&[
+        ("var foo = 2;", ""),
+        ("foo", "2"),
+        ("foo + 3 == 1 + foo * foo", "true"),
+        ("var bar;", ""),
+        ("bar", "nil"),
+        ("bar = foo = 2;", ""),
+        ("foo", "2"),
+        ("bar", "2"),
+        (
+            "{ foo = foo + 1; var bar; var foo = foo; foo = foo + 1; }",
+            "",
+        ),
+        ("foo", "3"),
     ])
 }
