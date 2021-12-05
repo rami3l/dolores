@@ -182,10 +182,35 @@ mod tests {
     }
 
     #[test]
+    fn assign() {
+        let tokens = Lexer::new("a = b = c = 3;").analyze();
+        let mut parser = Parser::new(tokens);
+        let got = parser.expr().unwrap();
+        let expected = "(assign! a (assign! b (assign! c 3)))";
+        assert_eq!(expected, format!("{}", got));
+    }
+
+    #[test]
     fn print_stmt() {
         let tokens = Lexer::new("print -(-1+2) >=3;").analyze();
         let got = Parser::new(tokens).run().unwrap();
         let expected = ["(print (>= (- (group (+ (- 1) 2))) 3))"];
+        izip!(got, expected).for_each(|(got, expected)| assert_eq!(expected, format!("{}", got)));
+    }
+
+    #[test]
+    fn var() {
+        let tokens = Lexer::new("foo;").analyze();
+        let got = Parser::new(tokens).run().unwrap();
+        let expected = ["foo"];
+        izip!(got, expected).for_each(|(got, expected)| assert_eq!(expected, format!("{}", got)));
+    }
+
+    #[test]
+    fn print_stmt_var() {
+        let tokens = Lexer::new("print foo;").analyze();
+        let got = Parser::new(tokens).run().unwrap();
+        let expected = ["(print foo)"];
         izip!(got, expected).for_each(|(got, expected)| assert_eq!(expected, format!("{}", got)));
     }
 

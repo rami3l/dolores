@@ -74,7 +74,7 @@ impl Display for Expr {
             Super { kw, method } => write!(f, "({} '{})", kw, method),
             This(kw) => write!(f, "({})", kw),
             Unary { op, rhs } => write!(f, "({} {})", op, rhs),
-            Variable(var) => write!(f, "(var '{})", var),
+            Variable(var) => write!(f, "{}", var),
         }
     }
 }
@@ -101,7 +101,23 @@ impl Display for Lit {
 // ** Recursive Descent for Expr **
 impl Parser {
     pub(crate) fn expr(&mut self) -> Result<Expr> {
-        self.equality_expr()
+        self.assignment_expr()
+    }
+
+    fn assignment_expr(&mut self) -> Result<Expr> {
+        let lhs = self.equality_expr()?;
+        if self.test(&[Equal]).is_some() {
+            if let Expr::Variable(name) = lhs {
+                let val = Box::new(self.assignment_expr()?);
+                return Ok(Expr::Assign { name, val });
+            }
+            bail!(
+                self.previous().unwrap().pos,
+                "while parsing a Assignment expression",
+                "can only assign to a variable",
+            )
+        }
+        Ok(lhs)
     }
 
     #[allow(clippy::similar_names)]
@@ -213,6 +229,7 @@ impl Parser {
                 }
                 Literal(Lit::Number(val.unwrap()))
             },
+            ident = Identifier => Variable(ident),
             lp = LeftParen => {
                 let inner = self.expr()?;
                 if self.test(&[RightParen]).is_none() {
@@ -221,7 +238,6 @@ impl Parser {
                 }
                 Grouping(Box::new(inner))
             },
-            ident = Identifier => Variable(ident)
         };
 
         if let Some(t) = self.peek() {

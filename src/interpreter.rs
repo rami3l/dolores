@@ -22,7 +22,16 @@ impl Expr {
         use TokenType as Tk;
 
         match self {
-            Expr::Assign { name, val } => todo!(),
+            Expr::Assign { name, val } => {
+                let name = &name.lexeme;
+                Env::lookup(env, name)
+                    .with_context(|| format!("Runtime Error: identifier `{}` is undefined", name))
+                    .and_then(|_| {
+                        let val = val.eval(env)?;
+                        Env::set_val(env, name, val.clone());
+                        Ok(val)
+                    })
+            }
             Expr::Binary { lhs, op, rhs } => Ok(match (op.ty, lhs.eval(env)?, rhs.eval(env)?) {
                 (Tk::Plus, Str(lhs), Str(rhs)) => Str(lhs + &rhs),
                 (Tk::Plus, Str(lhs), rhs) => Str(lhs + &format!("{}", rhs)),
@@ -78,10 +87,10 @@ impl Expr {
                 Tk::Minus => Ok(Object::Number(-rhs.eval(env)?.try_into()?)),
                 _ => unreachable!(),
             },
-            Expr::Variable(ident) => {
-                let ident = &ident.lexeme;
-                Env::lookup(env, ident)
-                    .with_context(|| format!("Runtime Error: identifier `{}` is undefined", ident))
+            Expr::Variable(name) => {
+                let name = &name.lexeme;
+                Env::lookup(env, name)
+                    .with_context(|| format!("Runtime Error: identifier `{}` is undefined", name))
             }
         }
     }

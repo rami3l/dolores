@@ -199,6 +199,10 @@ mod tests {
             r#"[(Var, "var"), (Identifier, "language"), (Equal, "="), (Str, "\"lox\""), (Semicolon, ";")]"#,
             r#"var language = "lox";"#
         );
+        assert_lex!(
+            r#"[(Print, "print"), (Identifier, "language"), (Semicolon, ";")]"#,
+            r#"print language;"#
+        );
     }
 
     #[test]
