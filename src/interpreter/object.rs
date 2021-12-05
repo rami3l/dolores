@@ -36,7 +36,7 @@ impl PartialEq for Object {
 
         match (self, other) {
             (Nil, Nil) => true,
-            (Nil, _) => false,
+            (Nil, _) | (_, Nil) => false,
             (Bool(l0), Bool(r0)) => l0 == r0,
             (Number(l0), Number(r0)) => l0 == r0,
             (Str(l0), Str(r0)) => l0 == r0,

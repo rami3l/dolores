@@ -25,9 +25,9 @@ pub(crate) struct Parser {
 }
 
 impl Parser {
-    pub fn new(tokens: impl Iterator<Item = Token>) -> Self {
+    pub fn new(tokens: impl IntoIterator<Item = Token>) -> Self {
         Parser {
-            tokens: tokens.collect(),
+            tokens: tokens.into_iter().collect(),
             idx: 0,
         }
     }
@@ -109,17 +109,6 @@ mod tests {
         assert_eq!(expected, got);
     }
 
-    fn assert_run(src: &str, expected: &[&str]) {
-        let tokens = Lexer::new(src).analyze();
-        let got = Parser::new(tokens)
-            .run()
-            .unwrap()
-            .iter()
-            .map(|i| format!("{}", i))
-            .collect_vec();
-        assert_eq!(expected, got);
-    }
-
     #[test]
     fn basic() {
         assert_expr("1+2 / 3- 4 *5", "(- (+ 1 (/ 2 3)) (* 4 5))");
@@ -197,6 +186,17 @@ mod tests {
         assert_expr("a = b = c = 3;", "(assign! a (assign! b (assign! c 3)))");
     }
 
+    fn assert_run(src: &str, expected: &[&str]) {
+        let tokens = Lexer::new(src).analyze();
+        let got = Parser::new(tokens)
+            .run()
+            .unwrap()
+            .iter()
+            .map(|i| format!("{}", i))
+            .collect_vec();
+        assert_eq!(expected, got);
+    }
+
     #[test]
     fn print_stmt() {
         assert_run(
@@ -206,8 +206,14 @@ mod tests {
     }
 
     #[test]
-    fn var() {
+    fn foo() {
         assert_run("foo;", &["foo"]);
+    }
+
+    #[test]
+    #[should_panic(expected = "expected `;` after a value")]
+    fn foo_no_semicolon() {
+        assert_run("foo", &[""]);
     }
 
     #[test]
