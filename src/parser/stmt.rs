@@ -56,7 +56,7 @@ pub enum Stmt {
 impl Display for Stmt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         fn disp_slice(xs: &[impl Display]) -> String {
-            xs.iter().map(|x| format!("({})", x)).join(" ")
+            xs.iter().map(|x| format!("{}", x)).join(" ")
         }
 
         match self {
@@ -87,7 +87,7 @@ impl Display for Stmt {
             Stmt::Var { name, init } => {
                 let init = init
                     .as_ref()
-                    .map_or_else(String::new, |i| format!(" {})", i));
+                    .map_or_else(String::new, |i| format!(" {}", i));
                 write!(f, "(var {}{})", name, init)
             }
             Stmt::While { cond, body } => write!(f, "(while {} {})", cond, body),
@@ -115,11 +115,28 @@ impl Parser {
     }
 
     pub(crate) fn stmt(&mut self) -> Result<Stmt> {
-        match self.test(&[Print]) {
+        match self.test(&[Print, LeftBrace]) {
             Some(t) if t.ty == Print => self.print_stmt(),
+            Some(t) if t.ty == LeftBrace => self.block_stmt(),
             None => self.expression_stmt(),
             _ => unreachable!(),
         }
+    }
+
+    pub(crate) fn print_stmt(&mut self) -> Result<Stmt> {
+        let rhs = self.expr().with_context(|| {
+            report(
+                self.previous().unwrap().pos,
+                "while parsing a Print statement",
+                "nothing to print",
+            )
+        })?;
+        self.consume(
+            &[Semicolon],
+            "while parsing an Print statement",
+            "expected `;` after a value",
+        )?;
+        Ok(Stmt::Print(rhs))
     }
 
     pub(crate) fn expression_stmt(&mut self) -> Result<Stmt> {
@@ -132,21 +149,19 @@ impl Parser {
         Ok(Stmt::Expression(expr))
     }
 
-    pub(crate) fn print_stmt(&mut self) -> Result<Stmt> {
-        let rhs = self.expr().with_context(|| {
-            report(
-                self.previous().unwrap().pos,
-                "while parsing a Print statement",
-                "nothing to print",
-            )
-        })?;
-        self.test(&[Semicolon]).with_context(|| {
-            report(
-                self.previous().unwrap().pos,
-                "while parsing a Print statement",
-                "expected `;` after a value",
-            )
-        })?;
-        Ok(Stmt::Print(rhs))
+    pub(crate) fn block_stmt(&mut self) -> Result<Stmt> {
+        // When parsing statements here, we need an 1-token lookahead.
+        let stmts = std::iter::from_fn(|| {
+            self.peek()
+                .filter(|t| t.ty != RightBrace)
+                .map(|_| self.decl())
+        })
+        .try_collect()?;
+        self.consume(
+            &[RightBrace],
+            "while parsing a Block statement",
+            "expected `}` to finish the block",
+        )?;
+        Ok(Stmt::Block(stmts))
     }
 }

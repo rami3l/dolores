@@ -67,7 +67,7 @@ impl Expr {
                     "Runtime Error: binary operator `{:?}` undefined for ({:?}, {:?})",
                     op,
                     lhs,
-                    rhs
+                    rhs,
                 ),
             }),
             Expr::Call {
@@ -99,7 +99,10 @@ impl Expr {
 impl Stmt {
     pub fn eval(self, env: &RcCell<Env>) -> Result<()> {
         match self {
-            Stmt::Block(_) => todo!(),
+            Stmt::Block(stmts) => {
+                let inner = Env::from_outer(env).shared();
+                stmts.into_iter().try_for_each(|stmt| stmt.eval(&inner))?;
+            }
             Stmt::Class {
                 name,
                 superclass,

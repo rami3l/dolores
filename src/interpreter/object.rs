@@ -71,7 +71,7 @@ impl TryFrom<Object> for f64 {
             Object::Bool(b) => Ok(f64::from(b as u8)),
             obj => bail!(
                 "Runtime Error: object `{:?}` cannot be converted to Number",
-                obj
+                obj,
             ),
         }
     }

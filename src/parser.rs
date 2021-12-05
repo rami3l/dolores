@@ -95,33 +95,48 @@ impl Parser {
 #[allow(clippy::enum_glob_use)]
 #[cfg(test)]
 mod tests {
-    use itertools::izip;
     use pretty_assertions::assert_eq;
 
     use super::*;
     use crate::lexer::Lexer;
 
+    fn assert_expr(src: &str, expected: &str) {
+        let tokens = Lexer::new(src).analyze();
+        let got = Parser::new(tokens)
+            .expr()
+            .map(|i| format!("{}", i))
+            .unwrap();
+        assert_eq!(expected, got);
+    }
+
+    fn assert_run(src: &str, expected: &[&str]) {
+        let tokens = Lexer::new(src).analyze();
+        let got = Parser::new(tokens)
+            .run()
+            .unwrap()
+            .iter()
+            .map(|i| format!("{}", i))
+            .collect_vec();
+        assert_eq!(expected, got);
+    }
+
     #[test]
     fn basic() {
-        let tokens = Lexer::new("1+2 / 3- 4 *5").analyze();
-        let got = Parser::new(tokens).expr().unwrap();
-        let expected = "(- (+ 1 (/ 2 3)) (* 4 5))";
-        assert_eq!(expected, format!("{}", got));
+        assert_expr("1+2 / 3- 4 *5", "(- (+ 1 (/ 2 3)) (* 4 5))");
     }
 
     #[test]
     fn parens() {
-        let tokens = Lexer::new("-(-1+2 / 3- 4 *5+ (6/ 7))").analyze();
-        let got = Parser::new(tokens).expr().unwrap();
-        let expected = "(- (group (+ (- (+ (- 1) (/ 2 3)) (* 4 5)) (group (/ 6 7)))))";
-        assert_eq!(expected, format!("{}", got));
+        assert_expr(
+            "-(-1+2 / 3- 4 *5+ (6/ 7))",
+            "(- (group (+ (- (+ (- 1) (/ 2 3)) (* 4 5)) (group (/ 6 7)))))",
+        );
     }
 
     #[test]
     #[should_panic(expected = "`)` expected")]
     fn paren_mismatch() {
-        let tokens = Lexer::new("-(-1+2 / 3- 4 *5+ (6/ 7)").analyze();
-        let _got = Parser::new(tokens).expr().unwrap();
+        assert_expr("-(-1+2 / 3- 4 *5+ (6/ 7)", "");
     }
 
     #[test]
@@ -137,8 +152,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "found binary operator `*`")]
     fn mul_used_as_unary() {
-        let tokens = Lexer::new("*1").analyze();
-        let _got = Parser::new(tokens).expr().unwrap();
+        assert_expr("*1", "");
     }
 
     #[test]
@@ -155,17 +169,16 @@ mod tests {
 
     #[test]
     fn inequality() {
-        let tokens = Lexer::new("-(-1+2) >=3- 4 *5+ (6/ 7)").analyze();
-        let got = Parser::new(tokens).expr().unwrap();
-        let expected = "(>= (- (group (+ (- 1) 2))) (+ (- 3 (* 4 5)) (group (/ 6 7))))";
-        assert_eq!(expected, format!("{}", got));
+        assert_expr(
+            "-(-1+2) >=3- 4 *5+ (6/ 7)",
+            "(>= (- (group (+ (- 1) 2))) (+ (- 3 (* 4 5)) (group (/ 6 7))))",
+        );
     }
 
     #[test]
     #[should_panic(expected = "found binary operator `>=`")]
     fn inequality_used_as_unary() {
-        let tokens = Lexer::new(">= 1+2 == 3").analyze();
-        let _got = Parser::new(tokens).expr().unwrap();
+        assert_expr(">= 1+2 == 3", "");
     }
 
     #[test]
@@ -181,50 +194,51 @@ mod tests {
 
     #[test]
     fn assign() {
-        let tokens = Lexer::new("a = b = c = 3;").analyze();
-        let mut parser = Parser::new(tokens);
-        let got = parser.expr().unwrap();
-        let expected = "(assign! a (assign! b (assign! c 3)))";
-        assert_eq!(expected, format!("{}", got));
+        assert_expr("a = b = c = 3;", "(assign! a (assign! b (assign! c 3)))");
     }
 
     #[test]
     fn print_stmt() {
-        let tokens = Lexer::new("print -(-1+2) >=3;").analyze();
-        let got = Parser::new(tokens).run().unwrap();
-        let expected = ["(print (>= (- (group (+ (- 1) 2))) 3))"];
-        izip!(got, expected).for_each(|(got, expected)| assert_eq!(expected, format!("{}", got)));
+        assert_run(
+            "print -(-1+2) >=3;",
+            &["(print (>= (- (group (+ (- 1) 2))) 3))"],
+        );
     }
 
     #[test]
     fn var() {
-        let tokens = Lexer::new("foo;").analyze();
-        let got = Parser::new(tokens).run().unwrap();
-        let expected = ["foo"];
-        izip!(got, expected).for_each(|(got, expected)| assert_eq!(expected, format!("{}", got)));
+        assert_run("foo;", &["foo"]);
     }
 
     #[test]
     fn print_stmt_var() {
-        let tokens = Lexer::new("print foo;").analyze();
-        let got = Parser::new(tokens).run().unwrap();
-        let expected = ["(print foo)"];
-        izip!(got, expected).for_each(|(got, expected)| assert_eq!(expected, format!("{}", got)));
+        assert_run("print foo;", &["(print foo)"]);
     }
 
     #[test]
     fn var_decl() {
-        let tokens = Lexer::new("var foo=-(-1+2) >=3;").analyze();
-        let got = Parser::new(tokens).run().unwrap();
-        let expected = ["(var foo (>= (- (group (+ (- 1) 2))) 3)))"];
-        izip!(got, expected).for_each(|(got, expected)| assert_eq!(expected, format!("{}", got)));
+        assert_run(
+            "var foo=-(-1+2) >=3;",
+            &["(var foo (>= (- (group (+ (- 1) 2))) 3))"],
+        );
     }
 
     #[test]
     fn var_decl_empty() {
-        let tokens = Lexer::new("var foo;").analyze();
-        let got = Parser::new(tokens).run().unwrap();
-        let expected = ["(var foo)"];
-        izip!(got, expected).for_each(|(got, expected)| assert_eq!(expected, format!("{}", got)));
+        assert_run("var foo;", &["(var foo)"]);
+    }
+
+    #[test]
+    fn block_stmt() {
+        assert_run(
+            "var foo; { var bar = 1; print bar; } var baz;",
+            &["(var foo)", "(begin (var bar 1) (print bar))", "(var baz)"],
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "expected `}` to finish the block")]
+    fn block_stmt_no_rightbrace() {
+        assert_run("var foo; { var bar = 1; print bar; var baz;", &[]);
     }
 }
