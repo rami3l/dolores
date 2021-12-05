@@ -84,9 +84,7 @@ impl Parser {
         &mut self,
         mut parser: impl FnMut(&mut Self) -> Result<T>,
     ) -> Result<Vec<T>> {
-        std::iter::repeat_with(|| self.peek().map(|_| parser(self)))
-            .map_while(|i| i)
-            .try_collect()
+        std::iter::from_fn(|| self.peek().map(|_| parser(self))).try_collect()
     }
 
     pub(crate) fn run(&mut self) -> Result<Vec<Stmt>> {
