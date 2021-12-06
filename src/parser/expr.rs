@@ -105,8 +105,9 @@ impl Parser {
     }
 
     fn assignment_expr(&mut self) -> Result<Expr> {
-        let lhs = self.equality_expr()?;
+        let lhs = self.logic_or_expr()?;
         if self.test(&[Equal]).is_some() {
+            // Assignment expression detected.
             if let Expr::Variable(name) = lhs {
                 let val = Box::new(self.assignment_expr()?);
                 return Ok(Expr::Assign { name, val });
@@ -118,6 +119,28 @@ impl Parser {
             )
         }
         Ok(lhs)
+    }
+
+    #[allow(clippy::similar_names)]
+    fn logic_or_expr(&mut self) -> Result<Expr> {
+        let mut res = self.logic_and_expr()?;
+        while let Some(op) = self.test(&[Or]) {
+            let lhs = Box::new(res);
+            let rhs = Box::new(self.logic_and_expr()?);
+            res = Expr::Logical { lhs, op, rhs }
+        }
+        Ok(res)
+    }
+
+    #[allow(clippy::similar_names)]
+    fn logic_and_expr(&mut self) -> Result<Expr> {
+        let mut res = self.equality_expr()?;
+        while let Some(op) = self.test(&[And]) {
+            let lhs = Box::new(res);
+            let rhs = Box::new(self.equality_expr()?);
+            res = Expr::Logical { lhs, op, rhs }
+        }
+        Ok(res)
     }
 
     #[allow(clippy::similar_names)]

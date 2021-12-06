@@ -79,12 +79,16 @@ impl Expr {
             Expr::Get { obj, name } => todo!(),
             Expr::Grouping(expr) => expr.eval(env),
             Expr::Literal(lit) => Ok(lit.into()),
-            Expr::Logical { lhs, op, rhs } => todo!(),
+            Expr::Logical { lhs, op, rhs } => match op.ty {
+                Tk::And => Ok(Object::Bool(lhs.eval(env)?.into() && rhs.eval(env)?.into())),
+                Tk::Or => Ok(Object::Bool(lhs.eval(env)?.into() || rhs.eval(env)?.into())),
+                _ => unreachable!(),
+            },
             Expr::Set { obj, name, to } => todo!(),
             Expr::Super { kw, method } => todo!(),
             Expr::This(_) => todo!(),
             Expr::Unary { op, rhs } => match op.ty {
-                Tk::Bang => Ok(Object::Bool(!rhs.eval(env)?.try_into()?)),
+                Tk::Bang => Ok(Object::Bool(!rhs.eval(env)?.conv::<bool>())),
                 Tk::Minus => Ok(Object::Number(-rhs.eval(env)?.try_into()?)),
                 _ => unreachable!(),
             },

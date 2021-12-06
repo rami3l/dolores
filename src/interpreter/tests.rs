@@ -92,3 +92,24 @@ fn if_else() -> Result<()> {
         ("foo", "2"),
     ])
 }
+
+#[test]
+fn if_else_and_or() -> Result<()> {
+    assert_eval(&[
+        ("var foo = 2;", ""),
+        (
+            "if (foo != 2 and whatever) foo = foo + 42; else { foo = 3; }",
+            "",
+        ),
+        ("foo", "3"),
+        (
+            "if (0 <= foo and foo <= 3) { foo = foo + 1; } else { foo = nil; }",
+            "",
+        ),
+        ("foo", "4"),
+        ("if (2 + 2 == 5 or !!!!!!!!foo) foo = 1;", ""),
+        ("foo", "1"),
+        ("if (true or whatever) foo = 2;", ""),
+        ("foo", "2"),
+    ])
+}

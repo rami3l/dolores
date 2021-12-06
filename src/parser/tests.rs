@@ -93,6 +93,14 @@ fn assign() {
     assert_expr("a = b = c = 3", "(assign! a (assign! b (assign! c 3)))");
 }
 
+#[test]
+fn bool_logic() {
+    assert_expr(
+        "foo == nil or !!bar and a != (b = c = 3)",
+        "(or (== foo nil) (and (! (! bar)) (!= a (group (assign! b (assign! c 3))))))",
+    );
+}
+
 fn assert_stmts(src: &str, expected: &[&str]) {
     let tokens = Lexer::new(src).analyze();
     let got = Parser::new(tokens)
