@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Block(Vec<Stmt>),
     Class {
@@ -111,7 +111,7 @@ impl Parser {
         .tap_err(|_| self.sync())
     }
 
-    pub(crate) fn var_decl(&mut self) -> Result<Stmt> {
+    fn var_decl(&mut self) -> Result<Stmt> {
         let ctx = "while parsing a Var declaration";
         let name = self.consume(&[Identifier], ctx, "expected variable name")?;
         let init = self.test(&[Equal]).map(|_| self.expr()).transpose()?;
@@ -120,8 +120,9 @@ impl Parser {
     }
 
     pub(crate) fn stmt(&mut self) -> Result<Stmt> {
-        match self.test(&[Print, LeftBrace, If]) {
+        match self.test(&[If, While, Print, LeftBrace]) {
             Some(t) if t.ty == If => self.if_stmt(),
+            Some(t) if t.ty == While => self.while_stmt(),
             Some(t) if t.ty == Print => self.print_stmt(),
             Some(t) if t.ty == LeftBrace => self.block_stmt(),
             None => self.expression_stmt(),
@@ -129,13 +130,9 @@ impl Parser {
         }
     }
 
-    pub(crate) fn if_stmt(&mut self) -> Result<Stmt> {
+    fn if_stmt(&mut self) -> Result<Stmt> {
         let ctx = "while parsing an If statement";
-
-        self.consume(&[LeftParen], ctx, "expected `(` before the Predicate")?;
-        let cond = self.expr()?;
-        self.consume(&[RightParen], ctx, "expected `)` after the Predicate")?;
-
+        let cond = self.parens(Self::expr, "the Predicate")?;
         let then_stmt = Box::new(self.stmt().with_context(|| {
             report(
                 self.previous().unwrap().pos,
@@ -143,12 +140,10 @@ impl Parser {
                 "nothing in the Then branch",
             )
         })?);
-
         let else_stmt = self
             .test(&[Else])
             .map(|_| anyhow::Ok(Box::new(self.stmt()?)))
             .transpose()?;
-
         Ok(Stmt::If {
             cond,
             then_stmt,
@@ -156,7 +151,20 @@ impl Parser {
         })
     }
 
-    pub(crate) fn print_stmt(&mut self) -> Result<Stmt> {
+    fn while_stmt(&mut self) -> Result<Stmt> {
+        let ctx = "while parsing a While statement";
+        let cond = self.parens(Self::expr, "the Predicate")?;
+        let body = Box::new(self.stmt().with_context(|| {
+            report(
+                self.previous().unwrap().pos,
+                ctx,
+                "nothing in the loop body",
+            )
+        })?);
+        Ok(Stmt::While { cond, body })
+    }
+
+    fn print_stmt(&mut self) -> Result<Stmt> {
         let rhs = self.expr().with_context(|| {
             report(
                 self.previous().unwrap().pos,
@@ -172,7 +180,7 @@ impl Parser {
         Ok(Stmt::Print(rhs))
     }
 
-    pub(crate) fn expression_stmt(&mut self) -> Result<Stmt> {
+    fn expression_stmt(&mut self) -> Result<Stmt> {
         let expr = self.expr()?;
         self.consume(
             &[Semicolon],
@@ -182,7 +190,7 @@ impl Parser {
         Ok(Stmt::Expression(expr))
     }
 
-    pub(crate) fn block_stmt(&mut self) -> Result<Stmt> {
+    fn block_stmt(&mut self) -> Result<Stmt> {
         // When parsing statements here, we need an 1-token lookahead.
         let stmts = std::iter::from_fn(|| {
             self.peek()

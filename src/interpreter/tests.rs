@@ -126,3 +126,12 @@ fn and_or() -> Result<()> {
         ("2*B or !2*B", "132"),
     ])
 }
+
+#[test]
+fn while_stmt() -> Result<()> {
+    assert_eval(&[
+        ("var i = 1; var product = 1;", ""),
+        ("while (i <= 5) { product = product * i; i = i + 1; }", ""),
+        ("product", "120"),
+    ])
+}

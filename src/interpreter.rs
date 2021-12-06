@@ -151,7 +151,11 @@ impl Stmt {
                     .unwrap_or_default();
                 env.borrow_mut().insert_val(&name.lexeme, init);
             }
-            Stmt::While { cond, body } => todo!(),
+            Stmt::While { cond, body } => {
+                while cond.clone().eval(env)?.to_bool() {
+                    body.clone().eval(env)?;
+                }
+            }
         }
         Ok(())
     }

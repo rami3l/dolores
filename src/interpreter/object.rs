@@ -63,6 +63,7 @@ impl From<&Object> for bool {
 }
 
 impl Object {
+    #[must_use]
     pub fn to_bool(&self) -> bool {
         self.into()
     }

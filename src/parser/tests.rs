@@ -161,6 +161,14 @@ fn if_stmt_why_not_kr_style() {
 }
 
 #[test]
+fn while_stmt() {
+    assert_stmts(
+        "while (i <= 5) { product = product * i; i = i + 1; }",
+        &["(while (<= i 5) (begin (assign! product (* product i)) (assign! i (+ i 1))))"],
+    );
+}
+
+#[test]
 fn foo() {
     assert_stmts("foo;", &["foo"]);
 }

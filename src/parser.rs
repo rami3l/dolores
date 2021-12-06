@@ -88,6 +88,17 @@ impl Parser {
         std::iter::from_fn(|| self.peek().map(|_| parser(self))).try_collect()
     }
 
+    pub(crate) fn parens<T>(
+        &mut self,
+        mut parser: impl FnMut(&mut Self) -> Result<T>,
+        ctx: &str,
+    ) -> Result<T> {
+        self.consume(&[LeftParen], ctx, format!("expected `(` before {}", ctx))?;
+        let res = parser(self)?;
+        self.consume(&[RightParen], ctx, format!("expected `)` after {}", ctx))?;
+        Ok(res)
+    }
+
     pub(crate) fn run(&mut self) -> Result<Vec<Stmt>> {
         self.many0(Self::decl)
     }
