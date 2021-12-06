@@ -80,15 +80,29 @@ impl Expr {
             Expr::Grouping(expr) => expr.eval(env),
             Expr::Literal(lit) => Ok(lit.into()),
             Expr::Logical { lhs, op, rhs } => match op.ty {
-                Tk::And => Ok(Object::Bool(lhs.eval(env)?.into() && rhs.eval(env)?.into())),
-                Tk::Or => Ok(Object::Bool(lhs.eval(env)?.into() || rhs.eval(env)?.into())),
+                Tk::And => {
+                    let lhs = lhs.eval(env)?;
+                    if lhs.to_bool() {
+                        rhs.eval(env)
+                    } else {
+                        Ok(lhs)
+                    }
+                }
+                Tk::Or => {
+                    let lhs = lhs.eval(env)?;
+                    if lhs.to_bool() {
+                        Ok(lhs)
+                    } else {
+                        rhs.eval(env)
+                    }
+                }
                 _ => unreachable!(),
             },
             Expr::Set { obj, name, to } => todo!(),
             Expr::Super { kw, method } => todo!(),
             Expr::This(_) => todo!(),
             Expr::Unary { op, rhs } => match op.ty {
-                Tk::Bang => Ok(Object::Bool(!rhs.eval(env)?.conv::<bool>())),
+                Tk::Bang => Ok(Object::Bool(!rhs.eval(env)?.to_bool())),
                 Tk::Minus => Ok(Object::Number(-rhs.eval(env)?.try_into()?)),
                 _ => unreachable!(),
             },
@@ -122,7 +136,7 @@ impl Stmt {
                 then_stmt,
                 else_stmt,
             } => {
-                if cond.eval(env)?.into() {
+                if cond.eval(env)?.to_bool() {
                     then_stmt.eval(env)?;
                 } else if let Some(else_stmt) = else_stmt {
                     else_stmt.eval(env)?;

@@ -107,9 +107,22 @@ fn if_else_and_or() -> Result<()> {
             "",
         ),
         ("foo", "4"),
-        ("if (2 + 2 == 5 or !!!!!!!!foo) foo = 1;", ""),
+        ("if (!!!(2 + 2 != 5) or !!!!!!!!foo) foo = 1;", ""),
         ("foo", "1"),
         ("if (true or whatever) foo = 2;", ""),
         ("foo", "2"),
+    ])
+}
+
+#[test]
+fn and_or() -> Result<()> {
+    assert_eval(&[
+        (r#""trick" or __TREAT__"#, r#""trick""#),
+        ("996 or 007", "996"),
+        (r#"nil or "hi""#, r#""hi""#),
+        ("nil and what", "nil"),
+        (r#"true and "then_what""#, r#""then_what""#),
+        ("var B = 66;", ""),
+        ("2*B or !2*B", "132"),
     ])
 }

@@ -56,9 +56,15 @@ impl From<Lit> for Object {
     }
 }
 
-impl From<Object> for bool {
-    fn from(obj: Object) -> Self {
+impl From<&Object> for bool {
+    fn from(obj: &Object) -> Self {
         !matches!(obj, Object::Nil | Object::Bool(false))
+    }
+}
+
+impl Object {
+    pub fn to_bool(&self) -> bool {
+        self.into()
     }
 }
 
