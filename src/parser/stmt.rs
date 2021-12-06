@@ -36,7 +36,7 @@ pub enum Stmt {
     If {
         cond: Expr,
         then_stmt: Box<Stmt>,
-        else_stmt: Box<Stmt>,
+        else_stmt: Option<Box<Stmt>>,
     },
     Print(Expr),
     Return {
@@ -81,7 +81,12 @@ impl Display for Stmt {
                 cond,
                 then_stmt,
                 else_stmt,
-            } => write!(f, "(if {} {} {})", cond, then_stmt, else_stmt),
+            } => {
+                let else_stmt = else_stmt
+                    .as_ref()
+                    .map_or_else(String::new, |i| format!(" {}", i));
+                write!(f, "(if {} {}{})", cond, then_stmt, else_stmt)
+            }
             Stmt::Print(expr) => write!(f, "(print {})", expr),
             Stmt::Return { kw, val } => write!(f, "({} {})", kw, val),
             Stmt::Var { name, init } => {
@@ -115,12 +120,40 @@ impl Parser {
     }
 
     pub(crate) fn stmt(&mut self) -> Result<Stmt> {
-        match self.test(&[Print, LeftBrace]) {
+        match self.test(&[Print, LeftBrace, If]) {
+            Some(t) if t.ty == If => self.if_stmt(),
             Some(t) if t.ty == Print => self.print_stmt(),
             Some(t) if t.ty == LeftBrace => self.block_stmt(),
             None => self.expression_stmt(),
             _ => unreachable!(),
         }
+    }
+
+    pub(crate) fn if_stmt(&mut self) -> Result<Stmt> {
+        let ctx = "while parsing an If statement";
+
+        self.consume(&[LeftParen], ctx, "expected `(` before the Predicate")?;
+        let cond = self.expr()?;
+        self.consume(&[RightParen], ctx, "expected `)` after the Predicate")?;
+
+        let then_stmt = Box::new(self.stmt().with_context(|| {
+            report(
+                self.previous().unwrap().pos,
+                ctx,
+                "nothing in the Then branch",
+            )
+        })?);
+
+        let else_stmt = self
+            .test(&[Else])
+            .map(|_| anyhow::Ok(Box::new(self.stmt()?)))
+            .transpose()?;
+
+        Ok(Stmt::If {
+            cond,
+            then_stmt,
+            else_stmt,
+        })
     }
 
     pub(crate) fn print_stmt(&mut self) -> Result<Stmt> {

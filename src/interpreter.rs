@@ -117,7 +117,13 @@ impl Stmt {
                 cond,
                 then_stmt,
                 else_stmt,
-            } => todo!(),
+            } => {
+                if cond.eval(env)?.into() {
+                    then_stmt.eval(env)?;
+                } else if let Some(else_stmt) = else_stmt {
+                    else_stmt.eval(env)?;
+                }
+            }
             Stmt::Print(expr) => println!("{}", expr.eval(env)?),
             Stmt::Return { kw, val } => todo!(),
             Stmt::Var { name, init } => {

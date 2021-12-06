@@ -77,3 +77,18 @@ fn vars_and_blocks() -> Result<()> {
         ("foo", "3"),
     ])
 }
+
+#[test]
+fn if_else() -> Result<()> {
+    assert_eval(&[
+        ("var foo = 2;", ""),
+        ("if (foo == 2) foo = foo + 1; else { foo = 42; }", ""),
+        ("foo", "3"),
+        ("if (foo == 2) { foo = foo + 1; } else foo = nil;", ""),
+        ("foo", "nil"),
+        ("if (!foo) foo = 1;", ""),
+        ("foo", "1"),
+        ("if (foo) foo = 2;", ""),
+        ("foo", "2"),
+    ])
+}
