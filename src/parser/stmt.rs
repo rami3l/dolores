@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use itertools::Itertools;
 use tap::TapFallible;
 
-use super::{Expr, Parser};
+use super::{Expr, Lit, Parser};
 use crate::run::report;
 #[allow(clippy::enum_glob_use)]
 use crate::{
@@ -120,9 +120,10 @@ impl Parser {
     }
 
     pub(crate) fn stmt(&mut self) -> Result<Stmt> {
-        match self.test(&[If, While, Print, LeftBrace]) {
+        match self.test(&[If, While, For, Print, LeftBrace]) {
             Some(t) if t.ty == If => self.if_stmt(),
             Some(t) if t.ty == While => self.while_stmt(),
+            Some(t) if t.ty == For => self.for_stmt(),
             Some(t) if t.ty == Print => self.print_stmt(),
             Some(t) if t.ty == LeftBrace => self.block_stmt(),
             None => self.expression_stmt(),
@@ -162,6 +163,58 @@ impl Parser {
             )
         })?);
         Ok(Stmt::While { cond, body })
+    }
+
+    fn for_stmt(&mut self) -> Result<Stmt> {
+        let ctx = "while parsing a For statement";
+        let (init, cond, incr) = self.parens(
+            |this| {
+                let init = match this.test(&[Semicolon, Var]) {
+                    Some(t) if t.ty == Semicolon => None,
+                    Some(t) if t.ty == Var => Some(this.var_decl()?),
+                    None => Some(this.expression_stmt()?),
+                    _ => unreachable!(),
+                };
+                let cond = if this.test(&[Semicolon]).is_none() {
+                    let cond = this.expr()?;
+                    this.consume(&[Semicolon], ctx, "expected `;` after the Condition Clause")?;
+                    Some(cond)
+                } else {
+                    None
+                };
+                let incr = if this.peek().map(|t| t.ty) == Some(RightParen) {
+                    None
+                } else {
+                    Some(this.expr()?)
+                };
+                Ok((init, cond, incr))
+            },
+            "the Predicate Clauses",
+        )?;
+        let body = Box::new(self.stmt().with_context(|| {
+            report(
+                self.previous().unwrap().pos,
+                ctx,
+                "nothing in the loop body",
+            )
+        })?);
+
+        // Desugaring begins...
+        // for (init; cond; incr) { body; } => { init; while (cond) { body; incr; } }
+        let body = Box::new(Stmt::Block(if let Some(incr) = incr {
+            vec![*body, Stmt::Expression(incr)]
+        } else {
+            vec![*body]
+        }));
+
+        let cond = cond.unwrap_or(Expr::Literal(Lit::Bool(true)));
+        let while_loop = Stmt::While { cond, body };
+
+        Ok(Stmt::Block(if let Some(init) = init {
+            vec![init, while_loop]
+        } else {
+            vec![while_loop]
+        }))
     }
 
     fn print_stmt(&mut self) -> Result<Stmt> {

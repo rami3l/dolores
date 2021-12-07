@@ -135,3 +135,27 @@ fn while_stmt() -> Result<()> {
         ("product", "120"),
     ])
 }
+
+#[test]
+fn for_stmt() -> Result<()> {
+    assert_eval(&[
+        ("var product = 1;", ""),
+        (
+            "for (var i = 1; i <= 5; i = i + 1) { product = product * i; }",
+            "",
+        ),
+        ("product", "120"),
+    ])
+}
+
+#[test]
+fn for_stmt_init_expr() -> Result<()> {
+    assert_eval(&[
+        ("var i; var product;", ""),
+        (
+            "for (i = product = 1; i <= 5; i = i + 1) { product = product * i; }",
+            "",
+        ),
+        ("product", "120"),
+    ])
+}

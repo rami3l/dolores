@@ -169,6 +169,27 @@ fn while_stmt() {
 }
 
 #[test]
+fn for_stmt() {
+    assert_stmts(
+        "for (i = product = 1; i <= 5; i = i + 1) { product = product * i; }",
+        &["(begin (assign! i (assign! product 1)) (while (<= i 5) (begin (begin (assign! product (* product i))) (assign! i (+ i 1)))))"],
+    );
+    assert_stmts(
+        "for (;;) { product = product * i; }",
+        &["(begin (while true (begin (begin (assign! product (* product i))))))"],
+    );
+}
+
+#[test]
+#[should_panic(expected = "expected `;` after the Condition Clause")]
+fn for_stmt_typo() {
+    assert_stmts(
+        "for (i = product = 1; i <= 5, i = i + 1) { product = product * i; }",
+        &[],
+    );
+}
+
+#[test]
 fn foo() {
     assert_stmts("foo;", &["foo"]);
 }
