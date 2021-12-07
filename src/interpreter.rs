@@ -14,18 +14,27 @@ pub use self::{
 use crate::{
     lexer::TokenType as Tk,
     parser::{Expr, Lit, Stmt},
+    run::runtime_report,
+    runtime_bail,
 };
 
 impl Expr {
+    #[allow(clippy::too_many_lines)]
     pub fn eval(self, env: &RcCell<Env>) -> Result<Object> {
         #[allow(clippy::enum_glob_use)]
         use Object::*;
 
         match self {
             Expr::Assign { name, val } => {
-                let name = &name.lexeme;
+                let (pos, name) = (name.pos, &name.lexeme);
                 Env::lookup(env, name)
-                    .with_context(|| format!("Runtime Error: identifier `{}` is undefined", name))
+                    .with_context(|| {
+                        runtime_report(
+                            pos,
+                            "while evaluating an Assignment expression",
+                            format!("identifier `{}` is undefined", name),
+                        )
+                    })
                     .and_then(|_| {
                         let val = val.eval(env)?;
                         Env::set_val(env, name, val.clone());
@@ -62,10 +71,11 @@ impl Expr {
                 }
                 (Tk::EqualEqual, lhs, rhs) => Bool(lhs == rhs),
                 (Tk::BangEqual, lhs, rhs) => Bool(lhs != rhs),
-
-                (op, lhs, rhs) => bail!(
-                    "Runtime Error: binary operator `{:?}` undefined for ({:?}, {:?})",
-                    op,
+                (ty, lhs, rhs) => runtime_bail!(
+                    op.pos,
+                    "while evaluating a Binary expression",
+                    "binary operator `{:?}` undefined for ({:?}, {:?})",
+                    ty,
                     lhs,
                     rhs,
                 ),
@@ -102,13 +112,28 @@ impl Expr {
             Expr::This(_) => todo!(),
             Expr::Unary { op, rhs } => match op.ty {
                 Tk::Bang => Ok(Object::Bool(!rhs.eval(env)?.to_bool())),
-                Tk::Minus => Ok(Object::Number(-rhs.eval(env)?.try_into()?)),
+                Tk::Minus => {
+                    let rhs = rhs.eval(env)?;
+                    let rhs = -rhs.try_conv::<f64>().with_context(|| {
+                        let err_msg = format!(
+                            "unary operator `{:?}` undefined for the given object",
+                            op.ty
+                        );
+                        runtime_report(op.pos, "while evaluating an Unary expression", err_msg)
+                    })?;
+                    Ok(Object::Number(rhs))
+                }
                 _ => unreachable!(),
             },
             Expr::Variable(name) => {
-                let name = &name.lexeme;
-                Env::lookup(env, name)
-                    .with_context(|| format!("Runtime Error: identifier `{}` is undefined", name))
+                let (pos, name) = (name.pos, &name.lexeme);
+                Env::lookup(env, name).with_context(|| {
+                    runtime_report(
+                        pos,
+                        "while evaluating a Variable expression",
+                        format!("identifier `{}` is undefined", name),
+                    )
+                })
             }
         }
     }

@@ -25,6 +25,8 @@ pub enum Expr {
     },
     Call {
         callee: Box<Expr>,
+        /// The trailing RightParen of the function call.
+        /// Used
         paren: Token,
         args: Vec<Expr>,
     },
