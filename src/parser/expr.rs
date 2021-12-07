@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use anyhow::Result;
+use itertools::Itertools;
 
 use super::Parser;
 #[allow(clippy::enum_glob_use)]
@@ -11,6 +12,8 @@ use crate::{
         TokenType::{self, *},
     },
 };
+
+const MAX_FUN_ARG_COUNT: usize = 255;
 
 #[derive(Debug, Clone)]
 pub enum Expr {
@@ -25,10 +28,10 @@ pub enum Expr {
     },
     Call {
         callee: Box<Expr>,
-        /// The trailing RightParen of the function call.
-        /// Used
-        paren: Token,
         args: Vec<Expr>,
+        /// The trailing RightParen of the function call.
+        /// Its position is memorized for error reports.
+        end: Token,
     },
     Get {
         obj: Box<Expr>,
@@ -68,7 +71,7 @@ impl Display for Expr {
             Binary { lhs, op, rhs } | Logical { lhs, op, rhs } => {
                 write!(f, "({} {} {})", op, lhs, rhs)
             }
-            Call { callee, args, .. } => write!(f, "(call {} {:?})", callee, args),
+            Call { callee, args, .. } => write!(f, "({} {})", callee, args.iter().join(" ")),
             Get { obj, name } => write!(f, "(obj-get {} '{})", obj, name),
             Grouping(g) => write!(f, "(group {})", g),
             Literal(lit) => write!(f, "{}", lit),
@@ -221,7 +224,53 @@ impl Parser {
             let rhs = Box::new(self.unary_expr()?);
             return Ok(Expr::Unary { op, rhs });
         }
-        self.primary_expr()
+        self.call_expr()
+    }
+
+    fn call_expr(&mut self) -> Result<Expr> {
+        let mut res = self.primary_expr()?;
+        loop {
+            if self.test(&[LeftParen]).is_some() {
+                let args = self.call_args()?;
+                res = Expr::Call {
+                    callee: Box::new(res),
+                    args,
+                    end: self.previous().unwrap(),
+                };
+            } else {
+                break;
+            }
+        }
+        Ok(res)
+    }
+
+    fn call_args(&mut self) -> Result<Vec<Expr>> {
+        let ctx = "while parsing a Call expression";
+        let mut args = vec![];
+        if self.peek().filter(|t| t.ty == RightParen).is_none() {
+            loop {
+                args.push(self.expr()?);
+                if self.test(&[Comma]).is_none() {
+                    break;
+                }
+            }
+        }
+        if self.test(&[RightParen]).is_none() {
+            self.sync();
+            bail!(
+                self.previous().unwrap().pos,
+                ctx,
+                "expected `)` to end the argument list"
+            );
+        }
+        if args.len() > MAX_FUN_ARG_COUNT {
+            bail!(
+                self.previous().unwrap().pos,
+                ctx,
+                format!("cannot have more than {} arguments", MAX_FUN_ARG_COUNT)
+            )
+        }
+        Ok(args)
     }
 
     fn primary_expr(&mut self) -> Result<Expr> {

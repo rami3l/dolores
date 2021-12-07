@@ -8,6 +8,6 @@ pub struct BreakMarker;
 #[display(fmt = "Internal Error: found Continue out of loop context")]
 pub struct ContinueMarker;
 
-/* TODO: Add semantic analysis for `break` and `continue` in the language
+/* TODO: Add semantic analysis for those jumps in the language
  * so that their being out of context becomes a semantic error.
  */

@@ -1,3 +1,4 @@
+pub(crate) mod closure;
 pub(crate) mod env;
 mod jump;
 pub(crate) mod object;
@@ -7,6 +8,7 @@ use anyhow::{bail, Context, Result};
 use tap::prelude::*;
 
 pub use self::{
+    closure::Closure,
     env::{Env, RcCell},
     jump::{BreakMarker, ContinueMarker},
     object::Object,
@@ -80,11 +82,9 @@ impl Expr {
                     rhs,
                 ),
             }),
-            Expr::Call {
-                callee,
-                paren,
-                args,
-            } => todo!(),
+            Expr::Call { callee, args, end } => {
+                let callee = callee.eval(env)?;
+            }
             Expr::Get { obj, name } => todo!(),
             Expr::Grouping(expr) => expr.eval(env),
             Expr::Literal(lit) => Ok(lit.into()),

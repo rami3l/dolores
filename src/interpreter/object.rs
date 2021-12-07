@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use anyhow::{bail, Result};
 
+use super::{Closure, Env, RcCell};
 use crate::parser::Lit;
 
 #[derive(Debug, Clone)]
@@ -10,6 +11,8 @@ pub enum Object {
     Bool(bool),
     Number(f64),
     Str(String),
+    NativeFn(Closure),
+    ForeignFn(fn(RcCell<Env>, Vec<Object>) -> Result<Object>),
 }
 
 impl Default for Object {
@@ -25,6 +28,7 @@ impl Display for Object {
             Object::Bool(b) => write!(f, "{}", b),
             Object::Number(n) => write!(f, "{}", n.to_string().trim_end_matches(".0")),
             Object::Str(s) => write!(f, r#""{}""#, s),
+            Object::NativeFn(_) | Object::ForeignFn(_) => write!(f, "<Callable>"),
         }
     }
 }
@@ -36,11 +40,11 @@ impl PartialEq for Object {
 
         match (self, other) {
             (Nil, Nil) => true,
-            (Nil, _) | (_, Nil) => false,
-            (Bool(l0), Bool(r0)) => l0 == r0,
-            (Number(l0), Number(r0)) => l0 == r0,
-            (Str(l0), Str(r0)) => l0 == r0,
-            _ => unreachable!(),
+            (Bool(l), Bool(r)) => l == r,
+            (Number(l), Number(r)) => l == r,
+            (Str(l), Str(r)) => l == r,
+            (Callable(l), Callable(r)) => l == r,
+            _ => false,
         }
     }
 }

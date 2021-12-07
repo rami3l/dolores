@@ -249,3 +249,17 @@ fn block_stmt() {
 fn block_stmt_no_rightbrace() {
     assert_stmts("var foo; { var bar = 1; print bar; var baz;", &[]);
 }
+
+#[test]
+fn fun_call() {
+    assert_stmts(
+        "func (c) (u, r) (r(y), i) (n) (g) ();",
+        &["((((((func c) u r) (r y) i) n) g) )"],
+    );
+}
+
+#[test]
+#[should_panic(expected = "expected `)` to end the argument list")]
+fn fun_call_typo() {
+    assert_stmts("func (c) (u, r (r(y), i) (n) (g) ();", &[]);
+}
