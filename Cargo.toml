@@ -8,12 +8,12 @@ authors = ["Rami3L <rami3l@outlook.com>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.48"
+anyhow = "1.0.51"
 clap = "3.0.0-beta.5"
 derive_more = "0.99.17"
-itertools = "0.10.1"
+itertools = "0.10.3"
 logos = "0.12.0"
-rustyline = "9.0.0"
+rustyline = "9.1.0"
 tap = "1.0.1"
 
 [dev-dependencies]

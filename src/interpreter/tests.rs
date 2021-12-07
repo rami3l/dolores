@@ -173,6 +173,18 @@ fn for_stmt() -> Result<()> {
 }
 
 #[test]
+fn for_stmt_init_expr() -> Result<()> {
+    assert_eval(&[
+        ("var i; var product;", ""),
+        (
+            "for (i = product = 1; i <= 5; i = i + 1) { product = product * i; }",
+            "",
+        ),
+        ("product", "120"),
+    ])
+}
+
+#[test]
 fn for_stmt_jump() -> Result<()> {
     assert_eval(&[
         ("var i = 1; var product = 1;", ""),
@@ -194,16 +206,4 @@ fn bare_jump_break() {
 #[should_panic(expected = "found Continue out of loop context")]
 fn bare_jump_continue() {
     assert_eval(&[("continue;", "")]).unwrap();
-}
-
-#[test]
-fn for_stmt_init_expr() -> Result<()> {
-    assert_eval(&[
-        ("var i; var product;", ""),
-        (
-            "for (i = product = 1; i <= 5; i = i + 1) { product = product * i; }",
-            "",
-        ),
-        ("product", "120"),
-    ])
 }
