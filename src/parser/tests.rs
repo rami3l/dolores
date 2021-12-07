@@ -181,6 +181,24 @@ fn for_stmt() {
 }
 
 #[test]
+fn jump_stmt() {
+    assert_stmts(
+        indoc! {"
+            while (true) {
+                if (i == 3 or i == 5) {
+                    i = i + 1;
+                    continue;
+                }
+                product = product * i;
+                i = i + 1;
+                if (i > 6) break;
+            }
+        "},
+        &["(while true (begin (if (or (== i 3) (== i 5)) (begin (assign! i (+ i 1)) (continue))) (assign! product (* product i)) (assign! i (+ i 1)) (if (> i 6) (break))))"],
+    );
+}
+
+#[test]
 #[should_panic(expected = "expected `;` after the Condition Clause")]
 fn for_stmt_typo() {
     assert_stmts(

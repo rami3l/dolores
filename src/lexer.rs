@@ -118,8 +118,14 @@ pub enum TokenType {
     #[token("and")]
     And,
 
+    #[token("break")]
+    Break,
+
     #[token("class")]
     Class,
+
+    #[token("continue")]
+    Continue,
 
     #[token("else")]
     Else,
@@ -176,6 +182,7 @@ pub enum TokenType {
 #[allow(clippy::enum_glob_use)]
 #[cfg(test)]
 mod tests {
+    use indoc::indoc;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -188,28 +195,40 @@ mod tests {
     }
 
     macro_rules! assert_lex {
-        ($expected:expr, $got:expr $(,)?) => {
+        ($got:expr, $expected:expr $(,)?) => {
             assert_eq!($expected, format!("{:?}", &lex($got)))
         };
     }
 
     #[test]
-    fn test_basic_lexing() {
+    fn basic() {
         assert_lex!(
+            r#"var language = "lox";"#,
             r#"[(Var, "var"), (Identifier, "language"), (Equal, "="), (Str, "\"lox\""), (Semicolon, ";")]"#,
-            r#"var language = "lox";"#
         );
         assert_lex!(
+            r#"print language;"#,
             r#"[(Print, "print"), (Identifier, "language"), (Semicolon, ";")]"#,
-            r#"print language;"#
         );
     }
 
     #[test]
-    fn test_lexing_calculator() {
+    fn calculator() {
         assert_lex!(
-            r#"[(Number, "1"), (Plus, "+"), (Number, "2"), (Slash, "/"), (Number, "3"), (Minus, "-"), (Number, "4"), (Star, "*"), (Number, "5"), (Plus, "+"), (LeftParen, "("), (Number, "6"), (Slash, "/"), (Number, "7"), (RightParen, ")")]"#,
             "1+ 2 / 3 -4 * 5 + (6/7)",
+            r#"[(Number, "1"), (Plus, "+"), (Number, "2"), (Slash, "/"), (Number, "3"), (Minus, "-"), (Number, "4"), (Star, "*"), (Number, "5"), (Plus, "+"), (LeftParen, "("), (Number, "6"), (Slash, "/"), (Number, "7"), (RightParen, ")")]"#,
+        );
+    }
+
+    #[test]
+    fn comments() {
+        assert_lex!(
+            indoc! {r"
+                var a = 1; // Wow
+                // This is a comment
+                a = false;
+            "},
+            r#"[(Var, "var"), (Identifier, "a"), (Equal, "="), (Number, "1"), (Semicolon, ";"), (SingleLineComment, "// Wow\n"), (SingleLineComment, "// This is a comment\n"), (Identifier, "a"), (Equal, "="), (False, "false"), (Semicolon, ";")]"#,
         );
     }
 }

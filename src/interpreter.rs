@@ -1,18 +1,18 @@
 pub(crate) mod env;
+mod jump;
 pub(crate) mod object;
 mod tests;
-
-use std::fmt::format;
 
 use anyhow::{bail, Context, Result};
 use tap::prelude::*;
 
 pub use self::{
     env::{Env, RcCell},
+    jump::{BreakMarker, ContinueMarker},
     object::Object,
 };
 use crate::{
-    lexer::TokenType,
+    lexer::TokenType as Tk,
     parser::{Expr, Lit, Stmt},
 };
 
@@ -20,7 +20,6 @@ impl Expr {
     pub fn eval(self, env: &RcCell<Env>) -> Result<Object> {
         #[allow(clippy::enum_glob_use)]
         use Object::*;
-        use TokenType as Tk;
 
         match self {
             Expr::Assign { name, val } => {
@@ -142,6 +141,13 @@ impl Stmt {
                     else_stmt.eval(env)?;
                 }
             }
+
+            Stmt::Jump(t) => match t.ty {
+                Tk::Break => return Err(anyhow::Error::new(BreakMarker)),
+                Tk::Continue => return Err(anyhow::Error::new(ContinueMarker)),
+                _ => unreachable!(),
+            },
+
             Stmt::Print(expr) => println!("{}", expr.eval(env)?),
             Stmt::Return { kw, val } => todo!(),
             Stmt::Var { name, init } => {
@@ -153,7 +159,11 @@ impl Stmt {
             }
             Stmt::While { cond, body } => {
                 while cond.clone().eval(env)?.to_bool() {
-                    body.clone().eval(env)?;
+                    match body.clone().eval(env) {
+                        Err(e) if e.is::<BreakMarker>() => break,
+                        Err(e) if e.is::<ContinueMarker>() => continue,
+                        res => res?,
+                    }
                 }
             }
         }

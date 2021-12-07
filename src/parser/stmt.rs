@@ -38,6 +38,7 @@ pub enum Stmt {
         then_stmt: Box<Stmt>,
         else_stmt: Option<Box<Stmt>>,
     },
+    Jump(Token),
     Print(Expr),
     Return {
         kw: Token,
@@ -87,6 +88,7 @@ impl Display for Stmt {
                     .map_or_else(String::new, |i| format!(" {}", i));
                 write!(f, "(if {} {}{})", cond, then_stmt, else_stmt)
             }
+            Stmt::Jump(t) => write!(f, "({})", t.lexeme),
             Stmt::Print(expr) => write!(f, "(print {})", expr),
             Stmt::Return { kw, val } => write!(f, "({} {})", kw, val),
             Stmt::Var { name, init } => {
@@ -120,7 +122,8 @@ impl Parser {
     }
 
     pub(crate) fn stmt(&mut self) -> Result<Stmt> {
-        match self.test(&[If, While, For, Print, LeftBrace]) {
+        match self.test(&[Break, Continue, If, While, For, Print, LeftBrace]) {
+            Some(t) if [Break, Continue].contains(&t.ty) => self.jump_stmt(),
             Some(t) if t.ty == If => self.if_stmt(),
             Some(t) if t.ty == While => self.while_stmt(),
             Some(t) if t.ty == For => self.for_stmt(),
@@ -129,6 +132,16 @@ impl Parser {
             None => self.expression_stmt(),
             _ => unreachable!(),
         }
+    }
+
+    pub(crate) fn jump_stmt(&mut self) -> Result<Stmt> {
+        let kw = self.previous().unwrap();
+        self.consume(
+            &[Semicolon],
+            "while parsing an Jump statement",
+            "expected `;` at the end",
+        )?;
+        Ok(Stmt::Jump(kw))
     }
 
     fn if_stmt(&mut self) -> Result<Stmt> {

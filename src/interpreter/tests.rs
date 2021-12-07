@@ -137,6 +137,30 @@ fn while_stmt() -> Result<()> {
 }
 
 #[test]
+fn while_stmt_jump() -> Result<()> {
+    assert_eval(&[
+        ("var i = 1; var product = 1;", ""),
+        (
+            indoc! {"
+                while (true) {
+                    if (i == 3 or i == 5) {
+                        i = i + 1;
+                        continue;
+                    }
+                    product = product * i;
+                    i = i + 1;
+                    if (i > 6) {
+                        break;
+                    }
+                }
+            "},
+            "",
+        ),
+        ("product", "48"),
+    ])
+}
+
+#[test]
 fn for_stmt() -> Result<()> {
     assert_eval(&[
         ("var product = 1;", ""),
@@ -146,6 +170,30 @@ fn for_stmt() -> Result<()> {
         ),
         ("product", "120"),
     ])
+}
+
+#[test]
+fn for_stmt_jump() -> Result<()> {
+    assert_eval(&[
+        ("var i = 1; var product = 1;", ""),
+        (
+            "for (;;) { product = product * i; i = i + 1; if (i > 5) break; }",
+            "",
+        ),
+        ("product", "120"),
+    ])
+}
+
+#[test]
+#[should_panic(expected = "found Break out of loop context")]
+fn bare_jump_break() {
+    assert_eval(&[("break;", "")]).unwrap();
+}
+
+#[test]
+#[should_panic(expected = "found Continue out of loop context")]
+fn bare_jump_continue() {
+    assert_eval(&[("continue;", "")]).unwrap();
 }
 
 #[test]

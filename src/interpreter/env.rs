@@ -24,6 +24,7 @@ impl Env {
         }
     }
 
+    #[must_use]
     pub fn shared(self) -> RcCell<Self> {
         Rc::new(RefCell::new(self))
     }
