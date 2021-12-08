@@ -5,6 +5,7 @@ pub(crate) mod object;
 mod tests;
 
 use anyhow::{bail, Context, Result};
+use itertools::Itertools;
 use tap::prelude::*;
 
 pub use self::{
@@ -84,6 +85,18 @@ impl Expr {
             }),
             Expr::Call { callee, args, end } => {
                 let callee = callee.eval(env)?;
+                let args = args.into_iter().map(|i| i.eval(env)).try_collect()?;
+                let res = match callee {
+                    Object::NativeFn(closure) => closure.apply(args)?,
+                    Object::ForeignFn(f) => f(args)?,
+                    obj => runtime_bail!(
+                        end.pos,
+                        "while evaluating a function Call expression",
+                        "the object `{}` is not callable",
+                        obj,
+                    ),
+                };
+                Ok(res)
             }
             Expr::Get { obj, name } => todo!(),
             Expr::Grouping(expr) => expr.eval(env),

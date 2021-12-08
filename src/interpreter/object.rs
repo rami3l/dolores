@@ -5,14 +5,14 @@ use anyhow::{bail, Result};
 use super::{Closure, Env, RcCell};
 use crate::parser::Lit;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Object {
     Nil,
     Bool(bool),
     Number(f64),
     Str(String),
     NativeFn(Closure),
-    ForeignFn(fn(RcCell<Env>, Vec<Object>) -> Result<Object>),
+    ForeignFn(fn(Vec<Object>) -> Result<Object>),
 }
 
 impl Default for Object {
@@ -29,22 +29,6 @@ impl Display for Object {
             Object::Number(n) => write!(f, "{}", n.to_string().trim_end_matches(".0")),
             Object::Str(s) => write!(f, r#""{}""#, s),
             Object::NativeFn(_) | Object::ForeignFn(_) => write!(f, "<Callable>"),
-        }
-    }
-}
-
-impl PartialEq for Object {
-    fn eq(&self, other: &Self) -> bool {
-        #[allow(clippy::enum_glob_use)]
-        use Object::*;
-
-        match (self, other) {
-            (Nil, Nil) => true,
-            (Bool(l), Bool(r)) => l == r,
-            (Number(l), Number(r)) => l == r,
-            (Str(l), Str(r)) => l == r,
-            (Callable(l), Callable(r)) => l == r,
-            _ => false,
         }
     }
 }
