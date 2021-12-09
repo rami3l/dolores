@@ -271,4 +271,8 @@ fn fun_decl() {
         "fun foo_bar(a, b, c, d) { print a * b - c / d; }",
         &["(fun foo_bar (a b c d) (print (- (* a b) (/ c d))))"],
     );
+    assert_stmts(
+        "fun foo_bar(a, b, c, d) { return a * b - c / d; }",
+        &["(fun foo_bar (a b c d) (return (- (* a b) (/ c d))))"],
+    );
 }

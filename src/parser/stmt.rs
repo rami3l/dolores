@@ -42,7 +42,7 @@ pub enum Stmt {
     Print(Expr),
     Return {
         kw: Token,
-        val: Expr,
+        val: Option<Expr>,
     },
     Var {
         name: Token,
@@ -90,7 +90,12 @@ impl Display for Stmt {
             }
             Stmt::Jump(t) => write!(f, "({})", t.lexeme),
             Stmt::Print(expr) => write!(f, "(print {})", expr),
-            Stmt::Return { kw, val } => write!(f, "({} {})", kw, val),
+            Stmt::Return { kw, val } => {
+                let val = val
+                    .as_ref()
+                    .map_or_else(String::new, |sup| format!(" {}", sup));
+                write!(f, "({}{})", kw, val)
+            }
             Stmt::Var { name, init } => {
                 let init = init
                     .as_ref()
@@ -142,8 +147,9 @@ impl Parser {
     }
 
     pub(crate) fn stmt(&mut self) -> Result<Stmt> {
-        match self.test(&[Break, Continue, If, While, For, Print, LeftBrace]) {
+        match self.test(&[Break, Continue, Return, If, While, For, Print, LeftBrace]) {
             Some(t) if [Break, Continue].contains(&t.ty) => self.jump_stmt(),
+            Some(t) if t.ty == Return => self.return_stmt(),
             Some(t) if t.ty == If => self.if_stmt(),
             Some(t) if t.ty == While => self.while_stmt(),
             Some(t) if t.ty == For => self.for_stmt(),
@@ -154,7 +160,7 @@ impl Parser {
         }
     }
 
-    pub(crate) fn jump_stmt(&mut self) -> Result<Stmt> {
+    fn jump_stmt(&mut self) -> Result<Stmt> {
         let kw = self.previous().unwrap();
         self.consume(
             &[Semicolon],
@@ -162,6 +168,22 @@ impl Parser {
             "expected `;` at the end",
         )?;
         Ok(Stmt::Jump(kw))
+    }
+
+    fn return_stmt(&mut self) -> Result<Stmt> {
+        let kw = self.previous().unwrap();
+        let val = if self.test(&[Semicolon]).is_none() {
+            let cond = self.expr()?;
+            self.consume(
+                &[Semicolon],
+                "while parsing an Return statement",
+                "expected `;` at the end",
+            )?;
+            Some(cond)
+        } else {
+            None
+        };
+        Ok(Stmt::Return { kw, val })
     }
 
     fn if_stmt(&mut self) -> Result<Stmt> {
