@@ -217,7 +217,17 @@ fn fun_closure() -> Result<()> {
 }
 
 #[test]
-fn fun_in_fun() -> Result<()> {
+#[should_panic(expected = "unexpected number of parameters (expected 2, got 1)")]
+fn fun_arity() {
+    assert_eval(&[
+        ("var i = 1; fun f(j, k) { return (i + j) * k; }", ""),
+        ("f(2)", ""),
+    ])
+    .unwrap();
+}
+
+#[test]
+fn fun_currying() -> Result<()> {
     assert_eval(&[
         (
             indoc! {"
@@ -230,6 +240,25 @@ fn fun_in_fun() -> Result<()> {
             "",
         ),
         ("f(2)(3)", "9"),
+    ])
+}
+
+#[test]
+fn fun_counter() -> Result<()> {
+    assert_eval(&[
+        (
+            indoc! {"
+                fun make_counter() {
+                    var i = 0;
+                    fun count() { i = i + 1; return i; }
+                    return count;
+                }
+                var counter = make_counter();
+            "},
+            "",
+        ),
+        ("counter()", "1"),
+        ("counter()", "2"),
     ])
 }
 
