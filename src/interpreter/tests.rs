@@ -209,6 +209,47 @@ fn bare_jump_continue() {
 }
 
 #[test]
-fn fun() -> Result<()> {
-    assert_eval(&[("var i = 1; var product = 1;", ""), todo!()])
+fn fun_closure() -> Result<()> {
+    assert_eval(&[
+        ("var i = 1; fun f(j, k) { return (i + j) * k; }", ""),
+        ("f(2, 3)", "9"),
+    ])
+}
+
+#[test]
+fn fun_in_fun() -> Result<()> {
+    assert_eval(&[
+        (
+            indoc! {"
+                var i = 1;
+                fun f(j) { 
+                    fun g(k) { return (i + j) * k; }
+                    return g;
+                }
+            "},
+            "",
+        ),
+        ("f(2)(3)", "9"),
+    ])
+}
+
+#[test]
+fn fun_env_trap() -> Result<()> {
+    assert_eval(&[
+        (
+            indoc! {r#"
+                var a = "global";
+                var a1; var a2;
+                {
+                    fun get_a() { return a; }
+                    a1 = get_a();
+                    var a = "block";
+                    a2 = get_a();
+                }
+            "#},
+            "",
+        ),
+        ("a1", r#""global""#),
+        ("a2", r#""global""#),
+    ])
 }
