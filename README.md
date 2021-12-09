@@ -14,8 +14,9 @@ This projet is still a work in progress.
   - [x] Logic expressions
   - [x] Control flow
     - [x] `break`/`continue` syntax extension
-      - [ ] Semantic analysis for jumping out of loops
-  - [ ] Functions
+    - [ ] Semantic analysis for jumping out of loops
+  - [x] Functions
+    - [x] Lambda syntax extension
     - [ ] Semantic analysis for closure captures
   - [ ] Classes
     - [ ] Inheritance

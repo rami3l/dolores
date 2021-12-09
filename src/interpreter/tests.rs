@@ -331,19 +331,19 @@ fn fun_man_or_boy() -> Result<()> {
         assert_eval(&[
             (
                 indoc! {r#"
-                fun A(k, xa, xb, xc, xd, xe) {
-                    fun B() {
-                        k = k - 1;
-                        return A(k, B, xa, xb, xc, xd);
+                    fun A(k, xa, xb, xc, xd, xe) {
+                        fun B() {
+                            k = k - 1;
+                            return A(k, B, xa, xb, xc, xd);
+                        }
+                        if (k <= 0) { return xd() + xe(); }
+                        return B();
                     }
-                    if (k <= 0) { return xd() + xe(); }
-                    return B();
-                }
-                
-                fun I0()  { return  0; }
-                fun I1()  { return  1; }
-                fun I_1() { return -1; }
-            "#},
+                    
+                    fun I0()  { return  0; }
+                    fun I1()  { return  1; }
+                    fun I_1() { return -1; }
+                "#},
                 "",
             ),
             // ("A(4, I1, I_1, I_1, I1, I0)", "1"),
