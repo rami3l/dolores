@@ -1,8 +1,10 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{collections::HashMap, sync::Arc};
+
+use parking_lot::Mutex;
 
 use super::Object;
 
-pub type RcCell<T> = Rc<RefCell<T>>;
+pub type RcCell<T> = Arc<Mutex<T>>;
 
 #[derive(Debug, Default)]
 pub struct Env {
@@ -20,25 +22,26 @@ impl Env {
     pub fn from_outer(outer: &RcCell<Env>) -> Self {
         Env {
             dict: HashMap::new(),
-            outer: Some(Rc::clone(outer)),
+            outer: Some(Arc::clone(outer)),
         }
     }
 
     #[must_use]
     pub fn shared(self) -> RcCell<Self> {
-        Rc::new(RefCell::new(self))
+        Arc::new(Mutex::new(self))
     }
 
     fn lookup_with_env(this: &RcCell<Env>, ident: &str) -> Option<(RcCell<Env>, Object)> {
-        if let Some(obj) = Rc::clone(this).borrow().dict.get(ident) {
-            return Some((Rc::clone(this), obj.clone()));
+        if let Some(obj) = Arc::clone(this).lock().dict.get(ident) {
+            return Some((Arc::clone(this), obj.clone()));
         }
-        this.borrow()
+        this.lock()
             .outer
             .as_ref()
             .and_then(|o| Self::lookup_with_env(o, ident))
     }
 
+    #[must_use]
     pub fn lookup(this: &RcCell<Env>, ident: &str) -> Option<Object> {
         Self::lookup_with_env(this, ident).map(|(_, obj)| obj)
     }
@@ -49,8 +52,8 @@ impl Env {
 
     pub fn set_val(this: &RcCell<Env>, ident: &str, defn: Object) {
         Self::lookup_with_env(this, ident)
-            .map_or_else(|| Rc::clone(this), |(that, _)| that)
-            .borrow_mut()
+            .map_or_else(|| Arc::clone(this), |(that, _)| that)
+            .lock()
             .insert_val(ident, defn);
     }
 }

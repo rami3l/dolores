@@ -84,6 +84,12 @@ impl Display for Expr {
     }
 }
 
+impl Default for Expr {
+    fn default() -> Self {
+        Expr::Literal(Lit::Nil)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Lit {
     Nil,

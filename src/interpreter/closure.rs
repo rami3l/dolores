@@ -1,7 +1,7 @@
 use anyhow::Result;
 use itertools::izip;
 
-use super::{Env, Object, RcCell};
+use super::{jump::ReturnMarker, Env, Object, RcCell};
 use crate::{lexer::Token, parser::Stmt, runtime_bail};
 
 #[derive(Debug, Clone)]
@@ -34,15 +34,11 @@ impl Closure {
             )
         }
         izip!(self.params.iter(), args)
-            .for_each(|(ident, defn)| env.borrow_mut().insert_val(&ident.lexeme, defn));
-        // TODO: Add return value handling.
-        self.body.into_iter().try_for_each(|i| i.eval(env))?;
-        /*
+            .for_each(|(ident, defn)| env.lock().insert_val(&ident.lexeme, defn));
         match self.body.into_iter().try_for_each(|i| i.eval(env)) {
-            Err(e) if e.is::<ReturnMarker>() => todo!("handle return value"),
-            _ => todo!(),
+            Err(e) if e.is::<ReturnMarker>() => return Ok(e.downcast::<ReturnMarker>().unwrap().0),
+            e => e?,
         }
-        */
         Ok(Object::Nil)
     }
 }

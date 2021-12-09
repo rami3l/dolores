@@ -4,12 +4,13 @@ mod jump;
 pub(crate) mod object;
 mod tests;
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
 use itertools::Itertools;
 use tap::prelude::*;
 
+use self::jump::ReturnMarker;
 pub use self::{
     closure::Closure,
     env::{Env, RcCell},
@@ -175,9 +176,9 @@ impl Stmt {
                     name: name.into(),
                     params,
                     body,
-                    env: Rc::clone(env),
+                    env: Arc::clone(env),
                 });
-                env.borrow_mut().insert_val(name, closure);
+                env.lock().insert_val(name, closure);
             }
             Stmt::If {
                 cond,
@@ -198,13 +199,16 @@ impl Stmt {
             },
 
             Stmt::Print(expr) => println!("{}", expr.eval(env)?),
-            Stmt::Return { kw, val } => todo!(),
+            Stmt::Return { kw: _, val } => {
+                let obj = val.unwrap_or_default().eval(env)?;
+                return Err(anyhow::Error::new(ReturnMarker(obj)));
+            }
             Stmt::Var { name, init } => {
                 let init = init
                     .map(|init| init.eval(env))
                     .transpose()?
                     .unwrap_or_default();
-                env.borrow_mut().insert_val(&name.lexeme, init);
+                env.lock().insert_val(&name.lexeme, init);
             }
             Stmt::While { cond, body } => {
                 while cond.clone().eval(env)?.to_bool() {
