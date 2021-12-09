@@ -78,9 +78,9 @@ impl Display for Expr {
             }
             Call { callee, args, .. } => write!(f, "({} {})", callee, args.iter().join(" ")),
             Get { obj, name } => write!(f, "(obj-get {} '{})", obj, name),
-            Grouping(g) => write!(f, "(group {})", g),
+            Grouping(expr) => write!(f, "{}", expr),
             Lambda { params, body } => {
-                let (params, body) = (disp_slice(params), disp_slice(body));
+                let (params, body) = (disp_slice(params, false), disp_slice(body, true));
                 write!(f, "(lambda ({}) {})", params, body)
             }
             Literal(lit) => write!(f, "{}", lit),

@@ -27,7 +27,7 @@ fn basic() {
 fn parens() {
     assert_expr(
         "-(-1+2 / 3- 4 *5+ (6/ 7))",
-        "(- (group (+ (- (+ (- 1) (/ 2 3)) (* 4 5)) (group (/ 6 7)))))",
+        "(- (+ (- (+ (- 1) (/ 2 3)) (* 4 5)) (/ 6 7)))",
     );
 }
 
@@ -69,7 +69,7 @@ fn mul_used_as_unary_sync() {
 fn inequality() {
     assert_expr(
         "-(-1+2) >=3- 4 *5+ (6/ 7)",
-        "(>= (- (group (+ (- 1) 2))) (+ (- 3 (* 4 5)) (group (/ 6 7))))",
+        "(>= (- (+ (- 1) 2)) (+ (- 3 (* 4 5)) (/ 6 7)))",
     );
 }
 
@@ -99,14 +99,14 @@ fn assign() {
 fn bool_logic() {
     assert_expr(
         "foo == nil or !!bar and a != (b = c = 3)",
-        "(or (== foo nil) (and (! (! bar)) (!= a (group (assign! b (assign! c 3))))))",
+        "(or (== foo nil) (and (! (! bar)) (!= a (assign! b (assign! c 3)))))",
     );
 }
 
 #[test]
 fn lambda() {
-    assert_expr("fun () { }", "(lambda () )");
-    assert_expr("fun () { } ()", "((lambda () ) )");
+    assert_expr("fun () { }", "(lambda () '())");
+    assert_expr("fun () { } ()", "((lambda () '()) )");
     assert_expr(
         "fun (a, b, c, d) { print a * b - c / d; }",
         "(lambda (a b c d) (print (- (* a b) (/ c d))))",
@@ -128,10 +128,7 @@ fn assert_stmts(src: &str, expected: &[&str]) {
 
 #[test]
 fn print_stmt() {
-    assert_stmts(
-        "print -(-1+2) >=3;",
-        &["(print (>= (- (group (+ (- 1) 2))) 3))"],
-    );
+    assert_stmts("print -(-1+2) >=3;", &["(print (>= (- (+ (- 1) 2)) 3))"]);
 }
 
 #[test]
@@ -241,7 +238,7 @@ fn print_stmt_var() {
 fn var_decl() {
     assert_stmts(
         "var foo=-(-1+2) >=3;",
-        &["(var foo (>= (- (group (+ (- 1) 2))) 3))"],
+        &["(var foo (>= (- (+ (- 1) 2)) 3))"],
     );
 }
 
@@ -280,7 +277,7 @@ fn fun_call_typo() {
 
 #[test]
 fn fun_decl() {
-    assert_stmts("fun foo() { }", &["(fun foo () )"]);
+    assert_stmts("fun foo() { }", &["(fun foo () '())"]);
     assert_stmts(
         "fun foo_bar(a, b, c, d) { print a * b - c / d; }",
         &["(fun foo_bar (a b c d) (print (- (* a b) (/ c d))))"],
@@ -293,6 +290,6 @@ fn fun_decl() {
 
 #[test]
 fn lambda_expr_stmt() {
-    assert_stmts("(fun () {});", &["(group (lambda () ))"]);
-    assert_stmts("g(fun () {});", &["(g (lambda () ))"]);
+    assert_stmts("(fun () {});", &["(lambda () '())"]);
+    assert_stmts("g(fun () {});", &["(g (lambda () '()))"]);
 }

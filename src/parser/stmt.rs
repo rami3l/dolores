@@ -51,7 +51,7 @@ pub enum Stmt {
 impl Display for Stmt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Stmt::Block(stmts) => write!(f, "(begin {})", disp_slice(stmts)),
+            Stmt::Block(stmts) => write!(f, "(begin {})", disp_slice(stmts, true)),
             Stmt::Class {
                 name,
                 superclass,
@@ -60,12 +60,12 @@ impl Display for Stmt {
                 let superclass = superclass
                     .as_ref()
                     .map_or_else(String::new, |sup| format!(" (extends {})", sup));
-                let methods = disp_slice(methods);
+                let methods = disp_slice(methods, false);
                 write!(f, "(class {}{} ({}))", name, superclass, methods)
             }
             Stmt::Expression(expr) => write!(f, "{}", expr),
             Stmt::Fun { name, params, body } => {
-                let (params, body) = (disp_slice(params), disp_slice(body));
+                let (params, body) = (disp_slice(params, false), disp_slice(body, true));
                 write!(f, "(fun {} ({}) {})", name, params, body)
             }
             Stmt::If {

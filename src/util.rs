@@ -14,6 +14,9 @@ pub(crate) fn index_to_pos(src: &str, idx: usize) -> (usize, usize) {
         .map_or((1, 1), |(i, ln)| (i + 1, ln.len()))
 }
 
-pub(crate) fn disp_slice(xs: &[impl Display]) -> String {
+pub(crate) fn disp_slice(xs: &[impl Display], disp_nil: bool) -> String {
+    if disp_nil && xs.is_empty() {
+        return "'()".into();
+    }
     xs.iter().map(|x| format!("{}", x)).join(" ")
 }
