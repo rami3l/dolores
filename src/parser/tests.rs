@@ -7,6 +7,8 @@ use pretty_assertions::assert_eq;
 use super::*;
 use crate::lexer::Lexer;
 
+// Expressions.
+
 fn assert_expr(src: &str, expected: &str) {
     let tokens = Lexer::new(src).analyze();
     let got = Parser::new(tokens)
@@ -100,6 +102,18 @@ fn bool_logic() {
         "(or (== foo nil) (and (! (! bar)) (!= a (group (assign! b (assign! c 3))))))",
     );
 }
+
+#[test]
+fn lambda() {
+    assert_expr("fun () { }", "(lambda () )");
+    assert_expr("fun () { } ()", "((lambda () ) )");
+    assert_expr(
+        "fun (a, b, c, d) { print a * b - c / d; }",
+        "(lambda (a b c d) (print (- (* a b) (/ c d))))",
+    );
+}
+
+// Statements & Declarations.
 
 fn assert_stmts(src: &str, expected: &[&str]) {
     let tokens = Lexer::new(src).analyze();
@@ -275,4 +289,10 @@ fn fun_decl() {
         "fun foo_bar(a, b, c, d) { return a * b - c / d; }",
         &["(fun foo_bar (a b c d) (return (- (* a b) (/ c d))))"],
     );
+}
+
+#[test]
+fn lambda_expr_stmt() {
+    assert_stmts("(fun () {});", &["(group (lambda () ))"]);
+    assert_stmts("g(fun () {});", &["(g (lambda () ))"]);
 }

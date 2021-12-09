@@ -244,6 +244,28 @@ fn fun_currying() -> Result<()> {
 }
 
 #[test]
+fn fun_lambda() -> Result<()> {
+    assert_eval(&[
+        (
+            indoc! {"
+                var i = 1;
+                var f = fun (j) { return fun (k) { return (i + j) * k; }; };
+            "},
+            "",
+        ),
+        ("f(2)(3)", "9"),
+    ])
+}
+
+#[test]
+fn fun_lambda_param() -> Result<()> {
+    assert_eval(&[
+        ("fun thrice(f, x) { return f(x) * 3; }", ""),
+        ("thrice(fun (x) { return x + 2; }, 1)", "9"),
+    ])
+}
+
+#[test]
 fn fun_counter() -> Result<()> {
     assert_eval(&[
         (

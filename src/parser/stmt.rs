@@ -288,7 +288,7 @@ impl Parser {
         Ok(Stmt::Expression(expr))
     }
 
-    fn block_stmt(&mut self) -> Result<Stmt> {
+    pub(crate) fn block_stmt(&mut self) -> Result<Stmt> {
         // When parsing statements here, we need an 1-token lookahead.
         let stmts = std::iter::from_fn(|| {
             self.peek()

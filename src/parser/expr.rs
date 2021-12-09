@@ -322,6 +322,23 @@ impl Parser {
                 Literal(Lit::Number(val.unwrap()))
             },
             ident = Identifier => Variable(ident),
+            _ = Fun => {
+                let ctx = "while parsing a Lambda expression";
+                self.consume(&[LeftParen], ctx, "expected `(` to begin the parameter list")?;
+                let params =
+                    self.call_params(|this| this.consume(&[Identifier], ctx, "expected parameter name"))?;
+                self.consume(
+                    &[LeftBrace],
+                    ctx,
+                    "expected `{` after function parameter list",
+                )?;
+                let body = if let Stmt::Block(stmts) = self.block_stmt()? {
+                    stmts
+                } else {
+                    unreachable!()
+                };
+                Expr::Lambda { params, body }
+            },
             lp = LeftParen => {
                 let inner = self.expr()?;
                 if self.test(&[RightParen]).is_none() {
