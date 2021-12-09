@@ -207,3 +207,8 @@ fn bare_jump_break() {
 fn bare_jump_continue() {
     assert_eval(&[("continue;", "")]).unwrap();
 }
+
+#[test]
+fn fun() -> Result<()> {
+    assert_eval(&[("var i = 1; var product = 1;", ""), todo!()])
+}

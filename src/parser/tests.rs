@@ -263,3 +263,12 @@ fn fun_call() {
 fn fun_call_typo() {
     assert_stmts("func (c) (u, r (r(y), i) (n) (g) ();", &[]);
 }
+
+#[test]
+fn fun_decl() {
+    assert_stmts("fun foo() { }", &["(fun foo () )"]);
+    assert_stmts(
+        "fun foo_bar(a, b, c, d) { print a * b - c / d; }",
+        &["(fun foo_bar (a b c d) (print (- (* a b) (/ c d))))"],
+    );
+}

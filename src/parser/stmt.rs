@@ -76,7 +76,7 @@ impl Display for Stmt {
             Stmt::Expression(expr) => write!(f, "{}", expr),
             Stmt::Fun { name, params, body } => {
                 let (params, body) = (disp_slice(params), disp_slice(body));
-                write!(f, "(fun {} ({}) {}", name, params, body)
+                write!(f, "(fun {} ({}) {})", name, params, body)
             }
             Stmt::If {
                 cond,
