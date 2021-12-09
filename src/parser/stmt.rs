@@ -5,15 +5,9 @@ use itertools::Itertools;
 use tap::TapFallible;
 
 use super::{Expr, Lit, Parser};
-use crate::run::report;
 #[allow(clippy::enum_glob_use)]
-use crate::{
-    bail,
-    lexer::{
-        Token,
-        TokenType::{self, *},
-    },
-};
+use crate::lexer::{Token, TokenType::*};
+use crate::run::report;
 
 #[derive(Debug, Clone)]
 pub enum Stmt {

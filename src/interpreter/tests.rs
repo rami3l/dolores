@@ -263,6 +263,25 @@ fn fun_counter() -> Result<()> {
 }
 
 #[test]
+fn fun_var_shadow() -> Result<()> {
+    assert_eval(&[
+        (
+            indoc! {r#"
+                var a = "global";
+                fun scope(p) {
+                    var p = "local";
+                    return p;
+                }
+                var p = scope(a);
+            "#},
+            "",
+        ),
+        ("a", r#""global""#),
+        ("p", r#""local""#),
+    ])
+}
+
+#[test]
 fn fun_env_trap() -> Result<()> {
     assert_eval(&[
         (
@@ -281,4 +300,38 @@ fn fun_env_trap() -> Result<()> {
         ("a1", r#""global""#),
         ("a2", r#""global""#),
     ])
+}
+
+#[test]
+fn fun_man_or_boy() -> Result<()> {
+    // src: https://rosettacode.org/wiki/Man_or_boy_test#Lox
+    fn inner() -> Result<()> {
+        assert_eval(&[
+            (
+                indoc! {r#"
+                fun A(k, xa, xb, xc, xd, xe) {
+                    fun B() {
+                        k = k - 1;
+                        return A(k, B, xa, xb, xc, xd);
+                    }
+                    if (k <= 0) { return xd() + xe(); }
+                    return B();
+                }
+                
+                fun I0()  { return  0; }
+                fun I1()  { return  1; }
+                fun I_1() { return -1; }
+            "#},
+                "",
+            ),
+            // ("A(4, I1, I_1, I_1, I1, I0)", "1"),
+            ("A(10, I1, I_1, I_1, I1, I0)", "-67"),
+        ])
+    }
+    // HACK: We use a new thread with 32 MiB of stack to avoid stack overflow...
+    // src: https://stackoverflow.com/a/44042122
+    let builder = std::thread::Builder::new().stack_size(32 * 1024 * 1024);
+    let handler = builder.spawn(inner).unwrap();
+    handler.join().unwrap()?;
+    Ok(())
 }
