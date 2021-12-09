@@ -4,6 +4,8 @@ mod jump;
 pub(crate) mod object;
 mod tests;
 
+use std::rc::Rc;
+
 use anyhow::{bail, Context, Result};
 use itertools::Itertools;
 use tap::prelude::*;
@@ -167,7 +169,16 @@ impl Stmt {
             Stmt::Expression(expr) => {
                 expr.eval(env)?;
             }
-            Stmt::Function { name, params, body } => todo!(),
+            Stmt::Fun { name, params, body } => {
+                let name = &name.lexeme;
+                let closure = Object::NativeFn(Closure {
+                    name: name.into(),
+                    params,
+                    body,
+                    env: Rc::clone(env),
+                });
+                env.borrow_mut().insert_val(name, closure);
+            }
             Stmt::If {
                 cond,
                 then_stmt,

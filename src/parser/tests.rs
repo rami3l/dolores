@@ -259,7 +259,7 @@ fn fun_call() {
 }
 
 #[test]
-#[should_panic(expected = "expected `)` to end the argument list")]
+#[should_panic(expected = "expected `)` to end the parameter list")]
 fn fun_call_typo() {
     assert_stmts("func (c) (u, r (r(y), i) (n) (g) ();", &[]);
 }

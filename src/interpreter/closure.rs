@@ -2,11 +2,12 @@ use anyhow::Result;
 use itertools::izip;
 
 use super::{Env, Object, RcCell};
-use crate::parser::Stmt;
+use crate::{lexer::Token, parser::Stmt, runtime_bail};
 
 #[derive(Debug, Clone)]
 pub struct Closure {
-    pub params: Vec<String>,
+    pub name: String,
+    pub params: Vec<Token>,
     pub body: Vec<Stmt>,
     pub env: RcCell<Env>,
 }
@@ -19,20 +20,29 @@ impl PartialEq for Closure {
 }
 
 impl Closure {
-    pub(crate) fn apply(&self, args: Vec<Object>) -> Result<Object> {
+    pub(crate) fn apply(self, args: Vec<Object>) -> Result<Object> {
         let env = &Env::from_outer(&self.env).shared();
-        if self.params.len() != args.len() {
-            todo!()
-            // TODO: Should bail here.
+        let (expected_len, got_len) = (self.params.len(), args.len());
+        if expected_len != got_len {
+            runtime_bail!(
+                // TODO: Fix position maybe?
+                (0, 0),
+                "while evaluating a function Call expression",
+                "unexpected number of parameters (expected {}, got {})",
+                expected_len,
+                got_len
+            )
         }
         izip!(self.params.iter(), args)
-            .for_each(|(ident, defn)| env.borrow_mut().insert_val(ident, defn));
+            .for_each(|(ident, defn)| env.borrow_mut().insert_val(&ident.lexeme, defn));
+        // TODO: Add return value handling.
+        self.body.into_iter().try_for_each(|i| i.eval(env))?;
         /*
         match self.body.into_iter().try_for_each(|i| i.eval(env)) {
             Err(e) if e.is::<ReturnMarker>() => todo!("handle return value"),
             _ => todo!(),
         }
         */
-        todo!("return a value")
+        Ok(Object::Nil)
     }
 }

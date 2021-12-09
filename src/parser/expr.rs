@@ -231,7 +231,7 @@ impl Parser {
         let mut res = self.primary_expr()?;
         loop {
             if self.test(&[LeftParen]).is_some() {
-                let args = self.call_args()?;
+                let args = self.call_params(Self::expr)?;
                 res = Expr::Call {
                     callee: Box::new(res),
                     args,
@@ -244,12 +244,15 @@ impl Parser {
         Ok(res)
     }
 
-    fn call_args(&mut self) -> Result<Vec<Expr>> {
-        let ctx = "while parsing a Call expression";
+    pub(crate) fn call_params<F, O>(&mut self, arg_parser: F) -> Result<Vec<O>>
+    where
+        F: Fn(&mut Self) -> Result<O>,
+    {
+        let ctx = "while parsing function parameter list";
         let mut args = vec![];
         if self.peek().filter(|t| t.ty == RightParen).is_none() {
             loop {
-                args.push(self.expr()?);
+                args.push(arg_parser(self)?);
                 if self.test(&[Comma]).is_none() {
                     break;
                 }
@@ -260,14 +263,14 @@ impl Parser {
             bail!(
                 self.previous().unwrap().pos,
                 ctx,
-                "expected `)` to end the argument list"
+                "expected `)` to end the parameter list"
             );
         }
         if args.len() > MAX_FUN_ARG_COUNT {
             bail!(
                 self.previous().unwrap().pos,
                 ctx,
-                format!("cannot have more than {} arguments", MAX_FUN_ARG_COUNT)
+                format!("cannot have more than {} parameters", MAX_FUN_ARG_COUNT)
             )
         }
         Ok(args)

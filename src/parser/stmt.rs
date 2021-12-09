@@ -28,7 +28,7 @@ pub enum Stmt {
         methods: Vec<Stmt>,
     },
     Expression(Expr),
-    Function {
+    Fun {
         name: Token,
         params: Vec<Token>,
         body: Vec<Stmt>,
@@ -74,7 +74,7 @@ impl Display for Stmt {
                 write!(f, "(class {}{} ({}))", name, superclass, methods)
             }
             Stmt::Expression(expr) => write!(f, "{}", expr),
-            Stmt::Function { name, params, body } => {
+            Stmt::Fun { name, params, body } => {
                 let (params, body) = (disp_slice(params), disp_slice(body));
                 write!(f, "(fun {} ({}) {}", name, params, body)
             }
@@ -105,12 +105,32 @@ impl Display for Stmt {
 // ** Recursive Descent for Stmt and Decl **
 impl Parser {
     pub(crate) fn decl(&mut self) -> Result<Stmt> {
-        match self.test(&[Var]) {
+        match self.test(&[Fun, Var]) {
+            Some(t) if t.ty == Fun => self.fun_decl(),
             Some(t) if t.ty == Var => self.var_decl(),
             None => self.stmt(),
             _ => unreachable!(),
         }
         .tap_err(|_| self.sync())
+    }
+
+    fn fun_decl(&mut self) -> Result<Stmt> {
+        let ctx = "while parsing a Fun declaration";
+        let name = self.consume(&[Identifier], ctx, "expected function name")?;
+        self.consume(&[LeftParen], ctx, "expected `(` after function name")?;
+        let params =
+            self.call_params(|this| this.consume(&[Identifier], ctx, "expected parameter name"))?;
+        self.consume(
+            &[LeftBrace],
+            ctx,
+            "expected `{` after function parameter list",
+        )?;
+        let body = if let Stmt::Block(stmts) = self.block_stmt()? {
+            stmts
+        } else {
+            unreachable!()
+        };
+        Ok(Stmt::Fun { name, params, body })
     }
 
     fn var_decl(&mut self) -> Result<Stmt> {
