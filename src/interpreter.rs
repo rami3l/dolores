@@ -103,6 +103,12 @@ impl Expr {
             }
             Expr::Get { obj, name } => todo!(),
             Expr::Grouping(expr) => expr.eval(env),
+            Expr::Lambda { params, body } => Ok(Object::NativeFn(Closure {
+                name: None,
+                params,
+                body,
+                env: Arc::clone(env),
+            })),
             Expr::Literal(lit) => Ok(lit.into()),
             Expr::Logical { lhs, op, rhs } => match op.ty {
                 Tk::And => {
@@ -173,7 +179,7 @@ impl Stmt {
             Stmt::Fun { name, params, body } => {
                 let name = &name.lexeme;
                 let closure = Object::NativeFn(Closure {
-                    name: name.into(),
+                    name: Some(name.into()),
                     params,
                     body,
                     env: Arc::clone(env),

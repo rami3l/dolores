@@ -6,7 +6,7 @@ use crate::{lexer::Token, parser::Stmt, runtime_bail};
 
 #[derive(Debug, Clone)]
 pub struct Closure {
-    pub name: String,
+    pub name: Option<String>,
     pub params: Vec<Token>,
     pub body: Vec<Stmt>,
     pub env: RcCell<Env>,

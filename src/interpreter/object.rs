@@ -28,7 +28,11 @@ impl Display for Object {
             Object::Bool(b) => write!(f, "{}", b),
             Object::Number(n) => write!(f, "{}", n.to_string().trim_end_matches(".0")),
             Object::Str(s) => write!(f, r#""{}""#, s),
-            Object::NativeFn(clos) => write!(f, "<fun: {}@native>", clos.name),
+            Object::NativeFn(clos) => write!(
+                f,
+                "<fun: {}@native>",
+                clos.name.as_ref().map_or("_", |s| s as _),
+            ),
             Object::ForeignFn(_) => write!(f, "<fun: _@foreign>"),
         }
     }

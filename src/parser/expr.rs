@@ -3,7 +3,8 @@ use std::fmt::Display;
 use anyhow::Result;
 use itertools::Itertools;
 
-use super::Parser;
+use super::{Parser, Stmt};
+use crate::util::disp_slice;
 #[allow(clippy::enum_glob_use)]
 use crate::{
     bail,
@@ -38,6 +39,10 @@ pub enum Expr {
         name: Token,
     },
     Grouping(Box<Expr>),
+    Lambda {
+        params: Vec<Token>,
+        body: Vec<Stmt>,
+    },
     Literal(Lit),
     Logical {
         lhs: Box<Expr>,
@@ -74,6 +79,10 @@ impl Display for Expr {
             Call { callee, args, .. } => write!(f, "({} {})", callee, args.iter().join(" ")),
             Get { obj, name } => write!(f, "(obj-get {} '{})", obj, name),
             Grouping(g) => write!(f, "(group {})", g),
+            Lambda { params, body } => {
+                let (params, body) = (disp_slice(params), disp_slice(body));
+                write!(f, "(lambda ({}) {})", params, body)
+            }
             Literal(lit) => write!(f, "{}", lit),
             Set { obj, name, to } => write!(f, "(obj-set! {} '{} {})", obj, name, to),
             Super { kw, method } => write!(f, "({} '{})", kw, method),

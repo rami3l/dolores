@@ -7,7 +7,7 @@ use tap::TapFallible;
 use super::{Expr, Lit, Parser};
 #[allow(clippy::enum_glob_use)]
 use crate::lexer::{Token, TokenType::*};
-use crate::run::report;
+use crate::{run::report, util::disp_slice};
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
@@ -50,10 +50,6 @@ pub enum Stmt {
 
 impl Display for Stmt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        fn disp_slice(xs: &[impl Display]) -> String {
-            xs.iter().map(|x| format!("{}", x)).join(" ")
-        }
-
         match self {
             Stmt::Block(stmts) => write!(f, "(begin {})", disp_slice(stmts)),
             Stmt::Class {
