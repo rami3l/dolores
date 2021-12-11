@@ -1,6 +1,7 @@
 #![cfg(test)]
 #![allow(clippy::enum_glob_use)]
 
+use anyhow::Result;
 use indoc::indoc;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;

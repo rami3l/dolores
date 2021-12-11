@@ -1,7 +1,7 @@
 use anyhow::Result;
 use itertools::izip;
 
-use super::{jump::ReturnMarker, Env, Object, RcCell};
+use super::{Env, Object, RcCell, ReturnMarker};
 use crate::{lexer::Token, parser::Stmt, runtime_bail};
 
 #[derive(Debug, Clone)]

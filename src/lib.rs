@@ -9,6 +9,7 @@
     unused_allocation
 )]
 
+pub mod checker;
 pub mod cmd;
 pub mod interpreter;
 pub mod lexer;
