@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
+use uuid::Uuid;
 
 use super::{BreakMarker, Closure, ContinueMarker, Env, Object, RcCell, ReturnMarker};
 use crate::{lexer::TokenType as Tk, parser::Stmt};
@@ -23,6 +24,7 @@ impl Stmt {
             Stmt::Fun { name, params, body } => {
                 let name = &name.lexeme;
                 let closure = Object::NativeFn(Closure {
+                    uid: Uuid::new_v4(),
                     name: Some(name.into()),
                     params,
                     body,

@@ -7,7 +7,7 @@ use tap::TapFallible;
 use super::{Expr, Lit, Parser};
 #[allow(clippy::enum_glob_use)]
 use crate::lexer::{Token, TokenType::*};
-use crate::{run::report, util::disp_slice};
+use crate::{error::report, util::disp_slice};
 
 #[derive(Debug, Clone)]
 pub enum Stmt {

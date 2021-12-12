@@ -13,11 +13,11 @@ pub(crate) use self::{
 };
 #[allow(clippy::enum_glob_use)]
 use crate::{
+    error::report,
     lexer::{
         Token,
         TokenType::{self, *},
     },
-    run::report,
 };
 
 pub(crate) struct Parser {

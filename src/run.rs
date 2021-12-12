@@ -10,42 +10,6 @@ use crate::{
     parser::Parser,
 };
 
-#[macro_export]
-macro_rules! bail {
-    ($pos:expr, $ctx:expr, $msg:expr $(,)?) => {
-        anyhow::bail!("{}", crate::run::report($pos, $ctx, $msg))
-    };
-    ($pos:expr, $ctx:expr, $msg:expr, $( $arg:expr ),+ $(,)?) => {
-        anyhow::bail!("{}", crate::run::report(
-            $pos,
-            $ctx,
-            format!($msg, $( $arg ),+),
-        ))
-    };
-}
-
-#[macro_export]
-macro_rules! runtime_bail {
-    ($pos:expr, $ctx:expr, $msg:expr $(,)?) => {
-        anyhow::bail!("{}", crate::run::runtime_report($pos, $ctx, $msg))
-    };
-    ($pos:expr, $ctx:expr, $msg:expr, $( $arg:expr ),+ $(,)?) => {
-        anyhow::bail!("{}", crate::run::runtime_report(
-            $pos,
-            $ctx,
-            format!($msg, $( $arg ),+),
-        ))
-    };
-}
-
-pub(crate) fn report(pos: (usize, usize), ctx: &str, msg: impl Display) -> String {
-    format!("[L{}:{}] Error {}: {}", pos.0, pos.1, ctx, msg)
-}
-
-pub(crate) fn runtime_report(pos: (usize, usize), ctx: &str, msg: impl Display) -> String {
-    format!("[L{}:{}] Runtime Error {}: {}", pos.0, pos.1, ctx, msg)
-}
-
 pub(crate) fn run_file(path: impl AsRef<Path>) -> Result<()> {
     let env = Env::default().shared();
     let contents = std::fs::read_to_string(path)?;

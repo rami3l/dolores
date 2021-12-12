@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, iter, sync::Arc};
 
 use parking_lot::Mutex;
 
@@ -24,6 +24,11 @@ impl Env {
             dict: HashMap::new(),
             outer: Some(Arc::clone(outer)),
         }
+    }
+
+    #[must_use]
+    pub fn outer_nth(&self, n: usize) -> Option<RcCell<Self>> {
+        iter::successors(self.outer.clone(), |outer| outer.lock().outer.clone()).nth(n)
     }
 
     #[must_use]

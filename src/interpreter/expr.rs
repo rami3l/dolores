@@ -3,10 +3,11 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use itertools::Itertools;
 use tap::prelude::*;
+use uuid::Uuid;
 
 use super::{Env, Object, RcCell};
 use crate::{
-    interpreter::Closure, lexer::TokenType as Tk, parser::Expr, run::runtime_report, runtime_bail,
+    error::runtime_report, interpreter::Closure, lexer::TokenType as Tk, parser::Expr, runtime_bail,
 };
 
 impl Expr {
@@ -89,6 +90,7 @@ impl Expr {
             Expr::Get { obj, name } => todo!(),
             Expr::Grouping(expr) => expr.eval(env),
             Expr::Lambda { params, body } => Ok(Object::NativeFn(Closure {
+                uid: Uuid::new_v4(),
                 name: None,
                 params,
                 body,
