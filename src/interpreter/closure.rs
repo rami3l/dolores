@@ -18,7 +18,7 @@ pub struct Closure {
 
 impl Hash for Closure {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.uid.hash(state)
+        self.uid.hash(state);
     }
 }
 
@@ -43,11 +43,10 @@ impl Closure {
             )
         }
         izip!(self.params.iter(), args)
-            .for_each(|(ident, defn)| env.lock().insert_val(&ident.lexeme, defn));
+            .for_each(|(ident, defn)| Env::insert_val(env, &ident.lexeme, defn));
         match self.body.into_iter().try_for_each(|i| i.eval(env)) {
-            Err(e) if e.is::<ReturnMarker>() => return Ok(e.downcast::<ReturnMarker>().unwrap().0),
-            e => e?,
+            Err(e) if e.is::<ReturnMarker>() => Ok(e.downcast::<ReturnMarker>().unwrap().0),
+            res => res.and(Ok(Object::Nil)),
         }
-        Ok(Object::Nil)
     }
 }

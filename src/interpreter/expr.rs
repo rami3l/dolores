@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Borrow, sync::Arc};
 
 use anyhow::{Context, Result};
 use itertools::Itertools;
@@ -94,7 +94,7 @@ impl Expr {
                 name: None,
                 params,
                 body,
-                env: Arc::clone(env),
+                env: Env::frozen(env),
             })),
             Expr::Literal(lit) => Ok(lit.into()),
             Expr::Logical { lhs, op, rhs } => match op.ty {

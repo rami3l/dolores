@@ -251,6 +251,7 @@ fn fun_late_init() -> Result<()> {
 #[test]
 fn fun_decl_order() -> Result<()> {
     assert_eval(&[
+        ("fun one() {}", ""),
         (
             "fun fact(i) { if (i <= 0) { return one(); } return i * fact(i - 1); }",
             "",

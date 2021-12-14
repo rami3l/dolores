@@ -23,14 +23,16 @@ impl Stmt {
             }
             Stmt::Fun { name, params, body } => {
                 let name = &name.lexeme;
+                let frozen_env = &Env::frozen(env);
                 let closure = Object::NativeFn(Closure {
                     uid: Uuid::new_v4(),
                     name: Some(name.into()),
                     params,
                     body,
-                    env: Arc::clone(env),
+                    env: Arc::clone(frozen_env),
                 });
-                env.lock().insert_val(name, closure);
+                Env::insert_val(frozen_env, name, closure.clone());
+                Env::insert_val(env, name, closure);
             }
             Stmt::If {
                 cond,
@@ -60,7 +62,7 @@ impl Stmt {
                     .map(|init| init.eval(env))
                     .transpose()?
                     .unwrap_or_default();
-                env.lock().insert_val(&name.lexeme, init);
+                Env::insert_val(env, &name.lexeme, init);
             }
             Stmt::While { cond, body } => {
                 while cond.clone().eval(env)?.to_bool() {
