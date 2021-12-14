@@ -9,14 +9,15 @@ use pretty_assertions::assert_eq;
 use super::*;
 use crate::{lexer::Lexer, parser::Parser};
 
-fn run_expr(src: &str, env: &RcCell<Env>) -> Result<String> {
+fn run_expr(src: &str, interpreter: &mut Interpreter) -> Result<String> {
     let tokens = Lexer::new(src).analyze().collect_vec();
-    if let Err(e) = Parser::new(tokens.clone())
-        .run()
-        .and_then(|stmts| stmts.into_iter().try_for_each(|stmt| stmt.eval(env)))
-    {
+    if let Err(e) = Parser::new(tokens.clone()).run().and_then(|stmts| {
+        stmts
+            .into_iter()
+            .try_for_each(|stmt| interpreter.exec(stmt))
+    }) {
         if let Ok(expr) = Parser::new(tokens).expr() {
-            return Ok(format!("{}", expr.eval(env)?));
+            return Ok(format!("{}", interpreter.eval(expr)?));
         }
         return Err(e);
     }
@@ -24,9 +25,9 @@ fn run_expr(src: &str, env: &RcCell<Env>) -> Result<String> {
 }
 
 fn assert_eval(pairs: &[(&str, &str)]) -> Result<()> {
-    let env = &Env::default().shared();
+    let interpreter = &mut Interpreter::default();
     pairs.iter().try_for_each(|(src, expected)| {
-        let got = run_expr(src, env)?;
+        let got = run_expr(src, interpreter)?;
         assert_eq!(expected, &got, "unexpected output for `{}`", src);
         Ok(())
     })

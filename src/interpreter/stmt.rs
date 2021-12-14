@@ -1,17 +1,22 @@
-use std::sync::Arc;
+use std::{borrow::BorrowMut, sync::Arc};
 
 use anyhow::Result;
 use uuid::Uuid;
 
-use super::{BreakMarker, Closure, ContinueMarker, Env, Object, RcCell, ReturnMarker};
+use super::{BreakMarker, Closure, ContinueMarker, Env, Interpreter, Object, RcCell, ReturnMarker};
 use crate::{lexer::TokenType as Tk, parser::Stmt};
 
-impl Stmt {
-    pub fn eval(self, env: &RcCell<Env>) -> Result<()> {
-        match self {
+impl Interpreter {
+    pub fn exec(&mut self, stmt: Stmt) -> Result<()> {
+        let env = &Arc::clone(&self.env);
+        match stmt {
             Stmt::Block(stmts) => {
-                let inner = Env::from_outer(env).shared();
-                stmts.into_iter().try_for_each(|stmt| stmt.eval(&inner))?;
+                let old_env = Arc::clone(env);
+                // Temporarily switch into the scope environment...
+                self.env = Env::from_outer(env).shared();
+                stmts.into_iter().try_for_each(|stmt| self.exec(stmt))?;
+                // Switch back...
+                self.env = old_env;
             }
             Stmt::Class {
                 name,
@@ -19,7 +24,7 @@ impl Stmt {
                 methods,
             } => todo!(),
             Stmt::Expression(expr) => {
-                expr.eval(env)?;
+                self.eval(expr)?;
             }
             Stmt::Fun { name, params, body } => {
                 let name = &name.lexeme;
@@ -37,10 +42,10 @@ impl Stmt {
                 then_stmt,
                 else_stmt,
             } => {
-                if cond.eval(env)?.to_bool() {
-                    then_stmt.eval(env)?;
+                if self.eval(cond)?.to_bool() {
+                    self.exec(*then_stmt)?;
                 } else if let Some(else_stmt) = else_stmt {
-                    else_stmt.eval(env)?;
+                    self.exec(*else_stmt)?;
                 }
             }
 
@@ -50,21 +55,18 @@ impl Stmt {
                 _ => unreachable!(),
             },
 
-            Stmt::Print(expr) => println!("{}", expr.eval(env)?),
+            Stmt::Print(expr) => println!("{}", self.eval(expr)?),
             Stmt::Return { kw: _, val } => {
-                let obj = val.unwrap_or_default().eval(env)?;
+                let obj = self.eval(val.unwrap_or_default())?;
                 return Err(anyhow::Error::new(ReturnMarker(obj)));
             }
             Stmt::Var { name, init } => {
-                let init = init
-                    .map(|init| init.eval(env))
-                    .transpose()?
-                    .unwrap_or_default();
-                env.lock().insert_val(&name.lexeme, init);
+                let init = self.eval(init.unwrap_or_default())?;
+                self.env.lock().insert_val(&name.lexeme, init);
             }
             Stmt::While { cond, body } => {
-                while cond.clone().eval(env)?.to_bool() {
-                    match body.clone().eval(env) {
+                while self.eval(cond.clone())?.to_bool() {
+                    match self.exec(*body.clone()) {
                         Err(e) if e.is::<BreakMarker>() => break,
                         Err(e) if e.is::<ContinueMarker>() => continue,
                         res => res?,

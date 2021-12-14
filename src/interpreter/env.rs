@@ -6,7 +6,7 @@ use super::Object;
 
 pub type RcCell<T> = Arc<Mutex<T>>;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Env {
     pub dict: HashMap<String, Object>,
     pub outer: Option<RcCell<Env>>,
