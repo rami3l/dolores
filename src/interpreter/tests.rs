@@ -27,7 +27,7 @@ fn assert_eval(pairs: &[(&str, &str)]) -> Result<()> {
     let env = &Env::default().shared();
     pairs.iter().try_for_each(|(src, expected)| {
         let got = run_expr(src, env)?;
-        assert_eq!(expected, &got);
+        assert_eq!(expected, &got, "unexpected output for `{}`", src);
         Ok(())
     })
 }
@@ -228,6 +228,44 @@ fn fun_arity() {
 }
 
 #[test]
+fn fun_rec() {
+    assert_eval(&[
+        (
+            "fun fact(i) { if (i <= 0) { return 1; } return i * fact(i - 1); }",
+            "",
+        ),
+        ("fact(5)", "120"),
+    ])
+    .unwrap();
+}
+
+#[test]
+fn fun_late_init() {
+    assert_eval(&[
+        ("var a = 3;", ""),
+        ("fun f() { return a; }", ""),
+        ("a = 4;", ""),
+        ("f()", "4"),
+    ])
+    .unwrap();
+}
+
+#[test]
+fn fun_forward_decl() {
+    assert_eval(&[
+        ("fun one() {};", ""),
+        (
+            "fun fact(i) { if (i <= 0) { return one(); } return i * fact(i - 1); }",
+            "",
+        ),
+        ("fun one() { return 1; }", ""),
+        // ("fun one() { return 1; }", ""),
+        ("fact(5)", "120"),
+    ])
+    .unwrap();
+}
+
+#[test]
 fn fun_currying() -> Result<()> {
     assert_eval(&[
         (
@@ -325,35 +363,36 @@ fn fun_env_trap() -> Result<()> {
     ])
 }
 
+const MAN_OR_BOY: &str = indoc! {r#"
+    fun A(k, xa, xb, xc, xd, xe) {
+        fun B() {
+            k = k - 1;
+            return A(k, B, xa, xb, xc, xd);
+        }
+        if (k <= 0) { return xd() + xe(); }
+        return B();
+    }
+
+    fun I0()  { return  0; }
+    fun I1()  { return  1; }
+    fun I_1() { return -1; }
+"#};
+
 #[test]
-fn fun_man_or_boy() -> Result<()> {
+fn fun_man_or_boy_4() -> Result<()> {
+    assert_eval(&[(MAN_OR_BOY, ""), ("A(4, I1, I_1, I_1, I1, I0)", "1")])
+}
+
+#[test]
+#[ignore = "stack consuming"]
+fn fun_man_or_boy_10() -> Result<()> {
     // src: https://rosettacode.org/wiki/Man_or_boy_test#Lox
     fn inner() -> Result<()> {
-        assert_eval(&[
-            (
-                indoc! {r#"
-                    fun A(k, xa, xb, xc, xd, xe) {
-                        fun B() {
-                            k = k - 1;
-                            return A(k, B, xa, xb, xc, xd);
-                        }
-                        if (k <= 0) { return xd() + xe(); }
-                        return B();
-                    }
-                    
-                    fun I0()  { return  0; }
-                    fun I1()  { return  1; }
-                    fun I_1() { return -1; }
-                "#},
-                "",
-            ),
-            // ("A(4, I1, I_1, I_1, I1, I0)", "1"),
-            ("A(10, I1, I_1, I_1, I1, I0)", "-67"),
-        ])
+        assert_eval(&[(MAN_OR_BOY, ""), ("A(10, I1, I_1, I_1, I1, I0)", "-67")])
     }
     // HACK: We use a new thread with 32 MiB of stack to avoid stack overflow...
     // src: https://stackoverflow.com/a/44042122
-    let builder = std::thread::Builder::new().stack_size(32 * 1024 * 1024);
+    let builder = std::thread::Builder::new().stack_size(64 * 1024 * 1024);
     let handler = builder.spawn(inner).unwrap();
     handler.join().unwrap()?;
     Ok(())
