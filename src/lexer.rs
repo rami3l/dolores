@@ -25,7 +25,7 @@ impl<'s> Lexer<'s> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Hash)]
 pub struct Token {
     pub ty: TokenType,
     pub lexeme: String,
@@ -40,7 +40,7 @@ impl Display for Token {
     }
 }
 
-#[derive(Logos, Debug, PartialEq, Clone, Copy)]
+#[derive(Logos, Debug, PartialEq, Clone, Copy, Hash)]
 #[repr(u16)]
 pub enum TokenType {
     // Single-character tokens.

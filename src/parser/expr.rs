@@ -1,4 +1,7 @@
-use std::fmt::Display;
+use std::{
+    fmt::Display,
+    hash::{Hash, Hasher},
+};
 
 use anyhow::Result;
 use itertools::Itertools;
@@ -16,7 +19,7 @@ use crate::{
 
 const MAX_FUN_ARG_COUNT: usize = 255;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub enum Expr {
     Assign {
         name: Token,
@@ -105,6 +108,22 @@ pub enum Lit {
     Bool(bool),
     Number(f64),
     Str(String),
+}
+
+impl Hash for Lit {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Lit::Nil => (),
+            Lit::Bool(b) => b.hash(state),
+            // Normally, a hash of a [`f64`] means nothing. However, since those [`f64`]
+            // values come from the lexer, it should be okay to assume bitwise equality
+            // since we are not doing arithmetric operations yet. This function is here
+            // just to make the Rust compiler happy.
+            // See: <https://stackoverflow.com/a/39647997>
+            Lit::Number(f) => f.to_bits().hash(state),
+            Lit::Str(s) => s.hash(state),
+        }
+    }
 }
 
 impl Display for Lit {
