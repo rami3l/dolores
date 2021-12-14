@@ -228,7 +228,7 @@ fn fun_arity() {
 }
 
 #[test]
-fn fun_rec() {
+fn fun_rec() -> Result<()> {
     assert_eval(&[
         (
             "fun fact(i) { if (i <= 0) { return 1; } return i * fact(i - 1); }",
@@ -236,33 +236,28 @@ fn fun_rec() {
         ),
         ("fact(5)", "120"),
     ])
-    .unwrap();
 }
 
 #[test]
-fn fun_late_init() {
+fn fun_late_init() -> Result<()> {
     assert_eval(&[
         ("var a = 3;", ""),
         ("fun f() { return a; }", ""),
         ("a = 4;", ""),
         ("f()", "4"),
     ])
-    .unwrap();
 }
 
 #[test]
-fn fun_forward_decl() {
+fn fun_decl_order() -> Result<()> {
     assert_eval(&[
-        ("fun one() {};", ""),
         (
             "fun fact(i) { if (i <= 0) { return one(); } return i * fact(i - 1); }",
             "",
         ),
         ("fun one() { return 1; }", ""),
-        // ("fun one() { return 1; }", ""),
         ("fact(5)", "120"),
     ])
-    .unwrap();
 }
 
 #[test]

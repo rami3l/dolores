@@ -82,12 +82,11 @@ mod expr {
                             &tk.lexeme
                         )
                     }
-                    self.resolve_local(Expr::Variable(tk), tk.clone())
+                    todo!()
+                    // self.resolve_local(Expr::Variable(tk), tk.clone())
                 }
             }
         }
-
-        fn resolve_local()
     }
 }
 
