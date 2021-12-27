@@ -1,19 +1,16 @@
-use std::{fmt::Display, path::Path};
+use std::path::Path;
 
 use anyhow::Result;
 use itertools::Itertools;
 use rustyline::{error::ReadlineError, Editor};
 
-use crate::{
-    interpreter::{self, Env, Interpreter, RcCell},
-    lexer::Lexer,
-    parser::Parser,
-};
+use crate::{interpreter::Interpreter, lexer::Lexer, parser::Parser};
 
 pub(crate) fn run_file(path: impl AsRef<Path>) -> Result<()> {
     let interpreter = &mut Interpreter::default();
     let contents = std::fs::read_to_string(path)?;
-    run(&contents, interpreter, false)
+    run(&contents, interpreter, false);
+    Ok(())
 }
 
 pub(crate) fn run_prompt() -> Result<()> {
@@ -22,28 +19,36 @@ pub(crate) fn run_prompt() -> Result<()> {
     loop {
         match reader.readline(">>> ") {
             Err(ReadlineError::Interrupted | ReadlineError::Eof) => break Ok(()),
-            ln => run(&ln?, interpreter, true).unwrap_or_else(|e| println!("{}", e)),
+            ln => run(&ln?, interpreter, true),
         }
     }
 }
 
-fn run(src: &str, interpreter: &mut Interpreter, repl_mode: bool) -> Result<()> {
+pub(crate) fn run_str(src: &str, interpreter: &mut Interpreter, repl_mode: bool) -> Result<String> {
     let tokens = Lexer::new(src).analyze().collect_vec();
-    if let Err(e) = Parser::new(tokens.clone())
-        .run()
-        .and_then(|stmts| stmts.into_iter().try_for_each(|it| interpreter.exec(it)))
-    {
+    let res = Parser::new(tokens.clone()).run().and_then(|stmts| {
+        interpreter.resolve_stmts(stmts.clone())?;
+        interpreter.exec_stmts(stmts)
+    });
+    match res {
+        Ok(_) => Ok("".into()),
         // In REPL mode, if the user types an expression instead of a statement, the
         // value of that expression is automatically printed out.
-        if repl_mode {
-            if let Ok(expr) = Parser::new(tokens).expr() {
-                interpreter
-                    .eval(expr)
-                    .map_or_else(|e| println!("<<< {:?}", e), |expr| println!("<<< {}", expr));
-                return Ok(());
-            }
-        }
-        println!("{:?}", e);
+        Err(_e) if repl_mode => Parser::new(tokens)
+            .expr()
+            .and_then(|expr| interpreter.eval(expr))
+            .map(|obj| format!("{}", obj)),
+        Err(e) => Err(e),
     }
-    Ok(())
+}
+
+fn run(src: &str, interpreter: &mut Interpreter, repl_mode: bool) {
+    run_str(src, interpreter, repl_mode).map_or_else(
+        |e| println!("{:?}", e),
+        |expr| {
+            if !expr.is_empty() {
+                println!("<<< {}", expr);
+            }
+        },
+    );
 }

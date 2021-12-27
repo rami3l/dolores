@@ -38,7 +38,7 @@ impl Interpreter {
                         if let Some(dist) = dist {
                             self.assign_at(dist, ident, val.clone());
                         } else {
-                            self.env.lock().insert_val(ident, val.clone());
+                            self.globals.lock().insert_val(ident, val.clone());
                         }
                         Ok(val)
                     })
@@ -192,18 +192,13 @@ impl Interpreter {
     fn lookup(&self, name: &Token) -> Option<Object> {
         let ident = &name.lexeme;
         self.locals.get(name).map_or_else(
-            || Env::lookup_dict(&self.env, ident),
-            |&dist| {
-                self.env
-                    .lock()
-                    .outer_nth(dist)
-                    .and_then(|it| Env::lookup_dict(&it, ident))
-            },
+            || Env::lookup_dict(&self.globals, ident),
+            |&dist| Env::outer_nth(&self.env, dist).and_then(|it| Env::lookup_dict(&it, ident)),
         )
     }
 
     fn assign_at(&self, dist: usize, ident: &str, val: Object) {
-        let target = &self.env.lock().outer_nth(dist).unwrap();
+        let target = Env::outer_nth(&self.env, dist).unwrap();
         // TODO: add error handling
         target.lock().insert_val(ident, val);
     }

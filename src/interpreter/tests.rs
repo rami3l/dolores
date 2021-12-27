@@ -3,30 +3,15 @@
 
 use anyhow::Result;
 use indoc::indoc;
-use itertools::Itertools;
 use pretty_assertions::assert_eq;
 
 use super::*;
-use crate::{lexer::Lexer, parser::Parser};
-
-fn run_expr(src: &str, interpreter: &mut Interpreter) -> Result<String> {
-    let tokens = Lexer::new(src).analyze().collect_vec();
-    if let Err(e) = Parser::new(tokens.clone())
-        .run()
-        .and_then(|stmts| stmts.into_iter().try_for_each(|it| interpreter.exec(it)))
-    {
-        if let Ok(expr) = Parser::new(tokens).expr() {
-            return Ok(format!("{}", interpreter.eval(expr)?));
-        }
-        return Err(e);
-    }
-    Ok("".into())
-}
+use crate::run::run_str;
 
 fn assert_eval(pairs: &[(&str, &str)]) -> Result<()> {
     let interpreter = &mut Interpreter::default();
     pairs.iter().try_for_each(|(src, expected)| {
-        let got = run_expr(src, interpreter)?;
+        let got = run_str(src, interpreter, true)?;
         assert_eq!(expected, &got, "unexpected output for `{}`", src);
         Ok(())
     })

@@ -6,7 +6,9 @@ pub(crate) mod object;
 mod stmt;
 mod tests;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
+
+use anyhow::Result;
 
 pub use self::{
     closure::Closure,
@@ -14,18 +16,35 @@ pub use self::{
     jump::{BreakMarker, ContinueMarker, ReturnMarker},
     object::Object,
 };
-use crate::lexer::Token;
+use crate::{lexer::Token, parser::Stmt, resolver::Resolver};
 
 /// The interpreter, containing the necessary evaluation context for expressions
 /// and statements.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct Interpreter {
-    pub env: RcCell<Env>,
+    env: RcCell<Env>,
+    pub globals: RcCell<Env>,
     pub locals: HashMap<Token, usize>,
 }
 
 impl Interpreter {
-    pub(crate) fn resolve(&mut self, name: Token, distance: usize) {
-        self.locals.insert(name, distance);
+    #[must_use]
+    pub fn new(env: &RcCell<Env>) -> Self {
+        Interpreter {
+            env: Arc::clone(env),
+            globals: Arc::clone(env),
+            locals: HashMap::new(),
+        }
+    }
+
+    pub fn resolve_stmts(&mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<()> {
+        *self = Resolver::new(std::mem::take(self)).run(stmts)?;
+        Ok(())
+    }
+}
+
+impl Default for Interpreter {
+    fn default() -> Self {
+        Interpreter::new(&Env::default().shared())
     }
 }

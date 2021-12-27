@@ -27,8 +27,8 @@ impl Env {
     }
 
     #[must_use]
-    pub fn outer_nth(&self, n: usize) -> Option<RcCell<Self>> {
-        iter::successors(self.outer.clone(), |outer| outer.lock().outer.clone()).nth(n)
+    pub fn outer_nth(this: &RcCell<Env>, n: usize) -> Option<RcCell<Self>> {
+        iter::successors(Some(Arc::clone(this)), |env| env.lock().outer.clone()).nth(n)
     }
 
     #[must_use]
@@ -36,6 +36,7 @@ impl Env {
         Arc::new(Mutex::new(self))
     }
 
+    /*
     fn lookup_with_env(this: &RcCell<Env>, ident: &str) -> Option<(RcCell<Env>, Object)> {
         if let Some(obj) = Arc::clone(this).lock().dict.get(ident) {
             return Some((Arc::clone(this), obj.clone()));
@@ -46,7 +47,6 @@ impl Env {
             .and_then(|o| Self::lookup_with_env(o, ident))
     }
 
-    /*
     #[must_use]
     pub fn lookup(this: &RcCell<Env>, ident: &str) -> Option<Object> {
         Self::lookup_with_env(this, ident).map(|(_, obj)| obj)

@@ -55,7 +55,7 @@ impl Resolver {
             .find_map(|(distance, scope)| {
                 scope
                     .contains_key(&name.lexeme)
-                    .then(|| self.interpreter.resolve(name.clone(), distance))
+                    .then(|| self.interpreter.locals.insert(name.clone(), distance))
             });
     }
 

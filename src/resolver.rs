@@ -3,7 +3,9 @@ mod stmt;
 
 use std::collections::HashMap;
 
-use crate::{interpreter::Interpreter, lexer::Token};
+use anyhow::Result;
+
+use crate::{interpreter::Interpreter, lexer::Token, parser::Stmt};
 
 // See: <https://www.craftinginterpreters.com/resolving-and-binding.html#resolving-variable-declarations>
 #[derive(Debug, Clone, Copy)]
@@ -25,10 +27,10 @@ pub struct Resolver {
 
 impl Resolver {
     #[must_use]
-    pub fn new(interpreter: Interpreter, scopes: impl Iterator<Item = Scope>) -> Self {
+    pub fn new(interpreter: Interpreter) -> Self {
         Resolver {
             interpreter,
-            scopes: scopes.collect(),
+            scopes: vec![],
         }
     }
 
@@ -54,5 +56,10 @@ impl Resolver {
 
     fn define(&mut self, token: &Token) -> Option<ResolutionState> {
         self.set_state(token, ResolutionState::Defined)
+    }
+
+    pub(crate) fn run(mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<Interpreter> {
+        stmts.into_iter().try_for_each(|it| self.resolve_stmt(it))?;
+        Ok(self.interpreter)
     }
 }
