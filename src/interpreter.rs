@@ -16,7 +16,11 @@ pub use self::{
     jump::{BreakMarker, ContinueMarker, ReturnMarker},
     object::Object,
 };
-use crate::{lexer::Token, parser::Stmt, resolver::Resolver};
+use crate::{
+    lexer::Token,
+    parser::{Expr, Stmt},
+    resolver::Resolver,
+};
 
 /// The interpreter, containing the necessary evaluation context for expressions
 /// and statements.
@@ -35,6 +39,13 @@ impl Interpreter {
             globals: Arc::clone(env),
             locals: HashMap::new(),
         }
+    }
+
+    pub fn resolve_expr(&mut self, expr: Expr) -> Result<()> {
+        let mut resolver = Resolver::new(std::mem::take(self));
+        resolver.resolve_expr(expr)?;
+        *self = resolver.interpreter;
+        Ok(())
     }
 
     pub fn resolve_stmts(&mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<()> {

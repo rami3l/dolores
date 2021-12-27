@@ -21,7 +21,7 @@ pub type Scope = HashMap<String, ResolutionState>;
 
 #[derive(Debug, Clone, Default)]
 pub struct Resolver {
-    interpreter: Interpreter,
+    pub interpreter: Interpreter,
     scopes: Vec<Scope>,
 }
 

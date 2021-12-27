@@ -38,7 +38,10 @@ pub(crate) fn run_str(src: &str, interpreter: &mut Interpreter, repl_mode: bool)
         {
             Parser::new(tokens)
                 .expr()
-                .and_then(|expr| interpreter.eval(expr))
+                .and_then(|expr| {
+                    interpreter.resolve_expr(expr.clone())?;
+                    interpreter.eval(expr)
+                })
                 .map(|obj| format!("{}", obj))
                 .map_err(|e1| {
                     e.context(
