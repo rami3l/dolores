@@ -77,6 +77,7 @@ impl Interpreter {
         Ok(())
     }
 
+    #[must_use]
     pub fn exec_stmts(&mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<()> {
         stmts.into_iter().try_for_each(|it| self.exec(it))
     }

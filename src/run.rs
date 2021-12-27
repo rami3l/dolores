@@ -26,18 +26,27 @@ pub(crate) fn run_prompt() -> Result<()> {
 
 pub(crate) fn run_str(src: &str, interpreter: &mut Interpreter, repl_mode: bool) -> Result<String> {
     let tokens = Lexer::new(src).analyze().collect_vec();
-    let res = Parser::new(tokens.clone()).run().and_then(|stmts| {
-        interpreter.resolve_stmts(stmts.clone())?;
-        interpreter.exec_stmts(stmts)
-    });
-    match res {
-        Ok(_) => Ok("".into()),
+    match Parser::new(tokens.clone()).run() {
+        Ok(stmts) => {
+            interpreter.resolve_stmts(stmts.clone())?;
+            interpreter.exec_stmts(stmts)?;
+            Ok("".into())
+        }
+        Err(e) if repl_mode =>
         // In REPL mode, if the user types an expression instead of a statement, the
         // value of that expression is automatically printed out.
-        Err(_e) if repl_mode => Parser::new(tokens)
-            .expr()
-            .and_then(|expr| interpreter.eval(expr))
-            .map(|obj| format!("{}", obj)),
+        {
+            Parser::new(tokens)
+                .expr()
+                .and_then(|expr| interpreter.eval(expr))
+                .map(|obj| format!("{}", obj))
+                .map_err(|e1| {
+                    e.context(
+                        "REPL mode: statement parsing failed, falling back to expression parsing",
+                    )
+                    .context(e1)
+                })
+        }
         Err(e) => Err(e),
     }
 }

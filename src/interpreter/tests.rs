@@ -46,7 +46,7 @@ fn calculator() -> Result<()> {
 }
 
 #[test]
-fn vars_and_blocks() -> Result<()> {
+fn var_and_block() -> Result<()> {
     assert_eval(&[
         ("var foo = 2;", ""),
         ("foo", "2"),
@@ -57,11 +57,17 @@ fn vars_and_blocks() -> Result<()> {
         ("foo", "2"),
         ("bar", "2"),
         (
-            "{ foo = foo + 1; var bar; var foo = foo; foo = foo + 1; }",
+            "{ foo = foo + 1; var bar; var foo1 = foo; foo1 = foo1 + 1; }",
             "",
         ),
         ("foo", "3"),
     ])
+}
+
+#[test]
+#[should_panic(expected = "cannot read local Variable `foo` in its own initializer")]
+fn var_own_init() {
+    assert_eval(&[("var foo = 2;", ""), ("{ var foo = foo; }", "")]).unwrap();
 }
 
 #[test]
@@ -274,6 +280,11 @@ fn fun_lambda() -> Result<()> {
         ),
         ("f(2)(3)", "9"),
     ])
+}
+
+#[test]
+fn fun_lambda_inline() -> Result<()> {
+    assert_eval(&[("(fun (x) { return x + 2; })(3)", "5")])
 }
 
 #[test]
