@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use anyhow::{bail, Result};
 
-use super::{Closure, Env, RcCell};
+use super::Closure;
 use crate::parser::Lit;
 
 #[derive(Debug, Clone, PartialEq)]

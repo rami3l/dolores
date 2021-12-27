@@ -9,7 +9,7 @@ use super::{Expr, Lit, Parser};
 use crate::lexer::{Token, TokenType::*};
 use crate::{error::report, util::disp_slice};
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Block(Vec<Stmt>),
     Class {

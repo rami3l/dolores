@@ -99,7 +99,7 @@ impl Parser {
         Ok(res)
     }
 
-    pub(crate) fn run(&mut self) -> Result<Vec<Stmt>> {
+    pub(crate) fn parse(&mut self) -> Result<Vec<Stmt>> {
         self.many0(Self::decl)
     }
 }

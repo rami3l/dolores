@@ -49,7 +49,7 @@ impl Interpreter {
     }
 
     pub fn resolve_stmts(&mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<()> {
-        *self = Resolver::new(std::mem::take(self)).run(stmts)?;
+        *self = Resolver::new(std::mem::take(self)).resolve(stmts)?;
         Ok(())
     }
 }

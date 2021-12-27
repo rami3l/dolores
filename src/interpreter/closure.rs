@@ -1,11 +1,9 @@
 use std::hash::{Hash, Hasher};
 
-use anyhow::Result;
-use itertools::izip;
 use uuid::Uuid;
 
-use super::{Env, Object, RcCell, ReturnMarker};
-use crate::{lexer::Token, parser::Stmt, runtime_bail};
+use super::{Env, RcCell};
+use crate::{lexer::Token, parser::Stmt};
 
 #[derive(Debug, Clone)]
 pub struct Closure {
@@ -27,3 +25,5 @@ impl PartialEq for Closure {
         self.uid == other.uid
     }
 }
+
+impl Eq for Closure {}

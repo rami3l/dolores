@@ -58,7 +58,7 @@ impl Resolver {
         self.set_state(token, ResolutionState::Defined)
     }
 
-    pub(crate) fn run(mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<Interpreter> {
+    pub(crate) fn resolve(mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<Interpreter> {
         stmts.into_iter().try_for_each(|it| self.resolve_stmt(it))?;
         Ok(self.interpreter)
     }

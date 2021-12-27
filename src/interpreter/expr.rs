@@ -1,6 +1,6 @@
-use std::{slice::SliceIndex, sync::Arc};
+use std::sync::Arc;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use itertools::{izip, Itertools};
 use tap::prelude::*;
 use uuid::Uuid;
@@ -36,7 +36,7 @@ impl Interpreter {
                     .and_then(|_| {
                         let val = self.eval(*val)?;
                         if let Some(dist) = dist {
-                            self.assign_at(dist, ident, val.clone());
+                            self.assign_at(dist, ident, val.clone())?;
                         } else {
                             self.globals.lock().insert_val(ident, val.clone());
                         }
@@ -197,9 +197,15 @@ impl Interpreter {
         )
     }
 
-    fn assign_at(&self, dist: usize, ident: &str, val: Object) {
-        let target = Env::outer_nth(&self.env, dist).unwrap();
-        // TODO: add error handling
+    fn assign_at(&self, dist: usize, ident: &str, val: Object) -> Result<()> {
+        let target = Env::outer_nth(&self.env, dist).ok_or_else(|| {
+            anyhow!(
+                "Internal Error while assigning to Variable `{}`: distance ({}) out of range",
+                ident,
+                dist,
+            )
+        })?;
         target.lock().insert_val(ident, val);
+        Ok(())
     }
 }

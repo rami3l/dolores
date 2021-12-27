@@ -17,7 +17,7 @@ This projet is still a work in progress.
     - [ ] Semantic analysis for jumping out of loops
   - [x] Functions
     - [x] Lambda syntax extension
-    - [ ] Semantic analysis for closure captures
+    - [x] Semantic analysis for closure captures
   - [ ] Classes
     - [ ] Inheritance
 - [ ] Lox VM

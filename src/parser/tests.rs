@@ -118,7 +118,7 @@ fn lambda() {
 fn assert_stmts(src: &str, expected: &[&str]) {
     let tokens = Lexer::new(src).analyze();
     let got = Parser::new(tokens)
-        .run()
+        .parse()
         .unwrap()
         .iter()
         .map(|i| format!("{}", i))

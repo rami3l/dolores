@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use uuid::Uuid;
 
-use super::{BreakMarker, Closure, ContinueMarker, Env, Interpreter, Object, RcCell, ReturnMarker};
+use super::{BreakMarker, Closure, ContinueMarker, Env, Interpreter, Object, ReturnMarker};
 use crate::{lexer::TokenType as Tk, parser::Stmt};
 
 impl Interpreter {
@@ -77,7 +77,6 @@ impl Interpreter {
         Ok(())
     }
 
-    #[must_use]
     pub fn exec_stmts(&mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<()> {
         stmts.into_iter().try_for_each(|it| self.exec(it))
     }
