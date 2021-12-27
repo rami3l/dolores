@@ -1,4 +1,4 @@
-use std::{borrow::BorrowMut, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::Result;
 use uuid::Uuid;
@@ -14,7 +14,7 @@ impl Interpreter {
                 let old_env = Arc::clone(env);
                 // Temporarily switch into the scope environment...
                 self.env = Env::from_outer(env).shared();
-                stmts.into_iter().try_for_each(|stmt| self.exec(stmt))?;
+                stmts.into_iter().try_for_each(|it| self.exec(it))?;
                 // Switch back...
                 self.env = old_env;
             }

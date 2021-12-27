@@ -46,19 +46,28 @@ impl Env {
             .and_then(|o| Self::lookup_with_env(o, ident))
     }
 
+    /*
     #[must_use]
     pub fn lookup(this: &RcCell<Env>, ident: &str) -> Option<Object> {
         Self::lookup_with_env(this, ident).map(|(_, obj)| obj)
     }
+    */
 
-    pub fn insert_val(&mut self, ident: &str, defn: Object) {
-        self.dict.insert(ident.into(), defn);
+    #[must_use]
+    pub fn lookup_dict(this: &RcCell<Env>, ident: &str) -> Option<Object> {
+        this.lock().dict.get(ident).cloned()
     }
 
-    pub fn set_val(this: &RcCell<Env>, ident: &str, defn: Object) {
+    pub fn insert_val(&mut self, ident: &str, val: Object) {
+        self.dict.insert(ident.into(), val);
+    }
+
+    /*
+    pub fn set_val(this: &RcCell<Env>, ident: &str, val: Object) {
         Self::lookup_with_env(this, ident)
             .map_or_else(|| Arc::clone(this), |(that, _)| that)
             .lock()
-            .insert_val(ident, defn);
+            .insert_val(ident, val);
     }
+    */
 }

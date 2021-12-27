@@ -1,15 +1,15 @@
-use std::sync::Arc;
+use std::{slice::SliceIndex, sync::Arc};
 
 use anyhow::{Context, Result};
 use itertools::{izip, Itertools};
 use tap::prelude::*;
 use uuid::Uuid;
 
-use super::{Env, Interpreter, Object, RcCell};
+use super::{Env, Interpreter, Object};
 use crate::{
     error::runtime_report,
     interpreter::{Closure, ReturnMarker},
-    lexer::TokenType as Tk,
+    lexer::{Token, TokenType as Tk},
     parser::Expr,
     runtime_bail,
 };
@@ -23,18 +23,23 @@ impl Interpreter {
         let env = &Arc::clone(&self.env);
         match expr {
             Expr::Assign { name, val } => {
-                let (pos, name) = (name.pos, &name.lexeme);
-                Env::lookup(env, name)
+                let dist = self.locals.get(&name).copied();
+                let ident = &name.lexeme;
+                self.lookup(&name)
                     .with_context(|| {
                         runtime_report(
-                            pos,
+                            name.pos,
                             "while evaluating an Assignment expression",
                             format!("identifier `{}` is undefined", name),
                         )
                     })
                     .and_then(|_| {
                         let val = self.eval(*val)?;
-                        Env::set_val(env, name, val.clone());
+                        if let Some(dist) = dist {
+                            self.assign_at(dist, ident, val.clone());
+                        } else {
+                            self.env.lock().insert_val(ident, val.clone());
+                        }
                         Ok(val)
                     })
             }
@@ -103,7 +108,7 @@ impl Interpreter {
                         izip!(clos.params.iter(), args).for_each(|(ident, defn)| {
                             self.env.lock().insert_val(&ident.lexeme, defn);
                         });
-                        let res = clos.body.into_iter().try_for_each(|i| self.exec(i));
+                        let res = clos.body.into_iter().try_for_each(|it| self.exec(it));
                         // Switch back...
                         self.env = old_env;
                         match res {
@@ -173,16 +178,33 @@ impl Interpreter {
                 }
                 _ => unreachable!(),
             },
-            Expr::Variable(name) => {
-                let (pos, name) = (name.pos, &name.lexeme);
-                Env::lookup(env, name).with_context(|| {
-                    runtime_report(
-                        pos,
-                        "while evaluating a Variable expression",
-                        format!("identifier `{}` is undefined", name),
-                    )
-                })
-            }
+            Expr::Variable(name) => self.lookup(&name).with_context(|| {
+                runtime_report(
+                    name.pos,
+                    "while evaluating a Variable expression",
+                    format!("identifier `{}` is undefined", name),
+                )
+            }),
         }
+    }
+
+    /// Look up a variable definition in the current evaluation context.
+    fn lookup(&self, name: &Token) -> Option<Object> {
+        let ident = &name.lexeme;
+        self.locals.get(name).map_or_else(
+            || Env::lookup_dict(&self.env, ident),
+            |&dist| {
+                self.env
+                    .lock()
+                    .outer_nth(dist)
+                    .and_then(|it| Env::lookup_dict(&it, ident))
+            },
+        )
+    }
+
+    fn assign_at(&self, dist: usize, ident: &str, val: Object) {
+        let target = &self.env.lock().outer_nth(dist).unwrap();
+        // TODO: add error handling
+        target.lock().insert_val(ident, val);
     }
 }

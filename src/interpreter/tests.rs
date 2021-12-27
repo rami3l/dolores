@@ -11,11 +11,10 @@ use crate::{lexer::Lexer, parser::Parser};
 
 fn run_expr(src: &str, interpreter: &mut Interpreter) -> Result<String> {
     let tokens = Lexer::new(src).analyze().collect_vec();
-    if let Err(e) = Parser::new(tokens.clone()).run().and_then(|stmts| {
-        stmts
-            .into_iter()
-            .try_for_each(|stmt| interpreter.exec(stmt))
-    }) {
+    if let Err(e) = Parser::new(tokens.clone())
+        .run()
+        .and_then(|stmts| stmts.into_iter().try_for_each(|it| interpreter.exec(it)))
+    {
         if let Ok(expr) = Parser::new(tokens).expr() {
             return Ok(format!("{}", interpreter.eval(expr)?));
         }

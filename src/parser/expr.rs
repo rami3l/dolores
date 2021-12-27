@@ -1,4 +1,5 @@
 use std::{
+    collections::hash_map::DefaultHasher,
     fmt::Display,
     hash::{Hash, Hasher},
 };

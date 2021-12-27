@@ -29,11 +29,10 @@ pub(crate) fn run_prompt() -> Result<()> {
 
 fn run(src: &str, interpreter: &mut Interpreter, repl_mode: bool) -> Result<()> {
     let tokens = Lexer::new(src).analyze().collect_vec();
-    if let Err(e) = Parser::new(tokens.clone()).run().and_then(|stmts| {
-        stmts
-            .into_iter()
-            .try_for_each(|stmt| interpreter.exec(stmt))
-    }) {
+    if let Err(e) = Parser::new(tokens.clone())
+        .run()
+        .and_then(|stmts| stmts.into_iter().try_for_each(|it| interpreter.exec(it)))
+    {
         // In REPL mode, if the user types an expression instead of a statement, the
         // value of that expression is automatically printed out.
         if repl_mode {

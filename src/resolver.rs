@@ -1,12 +1,17 @@
+mod expr;
+mod stmt;
+
 use std::collections::HashMap;
 
-use itertools::Itertools;
+use crate::{interpreter::Interpreter, lexer::Token};
 
-use crate::lexer::Token;
-
+// See: <https://www.craftinginterpreters.com/resolving-and-binding.html#resolving-variable-declarations>
 #[derive(Debug, Clone, Copy)]
 pub enum ResolutionState {
+    /// The variable is added to the innermost scope, so that it shadows any
+    /// outer one, and so that we know its existence.
     Declared,
+    /// The variable is fully resolved by the resolver and ready to be used.
     Defined,
 }
 
@@ -14,13 +19,15 @@ pub type Scope = HashMap<String, ResolutionState>;
 
 #[derive(Debug, Clone, Default)]
 pub struct Resolver {
+    interpreter: Interpreter,
     scopes: Vec<Scope>,
 }
 
 impl Resolver {
     #[must_use]
-    pub fn new(scopes: impl Iterator<Item = Scope>) -> Self {
+    pub fn new(interpreter: Interpreter, scopes: impl Iterator<Item = Scope>) -> Self {
         Resolver {
+            interpreter,
             scopes: scopes.collect(),
         }
     }
@@ -49,45 +56,3 @@ impl Resolver {
         self.set_state(token, ResolutionState::Defined)
     }
 }
-
-mod expr {
-    use anyhow::Result;
-
-    use super::{ResolutionState, Resolver};
-    use crate::{parser::Expr, semantic_bail};
-
-    impl Resolver {
-        fn check_expr(&mut self, expr: Expr) -> Result<()> {
-            match expr {
-                Expr::Assign { name, val } => todo!(),
-                Expr::Binary { lhs, op, rhs } => todo!(),
-                Expr::Call { callee, args, end } => todo!(),
-                Expr::Get { obj, name } => todo!(),
-                Expr::Grouping(_) => todo!(),
-                Expr::Lambda { params, body } => todo!(),
-                Expr::Literal(_) => todo!(),
-                Expr::Logical { lhs, op, rhs } => todo!(),
-                Expr::Set { obj, name, to } => todo!(),
-                Expr::Super { kw, method } => todo!(),
-                Expr::This(_) => todo!(),
-                Expr::Unary { op, rhs } => todo!(),
-                Expr::Variable(tk) => {
-                    if let Some(ResolutionState::Declared) =
-                        self.scopes.last().and_then(|last| last.get(&tk.lexeme))
-                    {
-                        semantic_bail!(
-                            tk.pos,
-                            "while resolving a Variable expression",
-                            "cannot read local Variable `{}` in its own initializer",
-                            &tk.lexeme
-                        )
-                    }
-                    todo!()
-                    // self.resolve_local(Expr::Variable(tk), tk.clone())
-                }
-            }
-        }
-    }
-}
-
-mod stmt {}
