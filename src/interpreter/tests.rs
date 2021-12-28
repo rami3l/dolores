@@ -189,19 +189,19 @@ fn for_stmt_jump() -> Result<()> {
 }
 
 #[test]
-#[should_panic(expected = "found Break out of loop context")]
+#[should_panic(expected = "found `break` out of loop context")]
 fn bare_jump_break() {
     assert_eval(&[("break;", "")]).unwrap();
 }
 
 #[test]
-#[should_panic(expected = "found Continue out of loop context")]
+#[should_panic(expected = "found `continue` out of loop context")]
 fn bare_jump_continue() {
     assert_eval(&[("continue;", "")]).unwrap();
 }
 
 #[test]
-#[should_panic(expected = "found Return out of function context")]
+#[should_panic(expected = "found `return` out of function context")]
 fn bare_return() {
     assert_eval(&[("return true;", "")]).unwrap();
 }

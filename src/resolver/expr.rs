@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use super::{FunctionContext, ResolutionState, Resolver};
+use super::{FunctionContextType, JumpContext, ResolutionState, Resolver};
 use crate::{
     lexer::Token,
     parser::{Expr, Stmt},
@@ -25,7 +25,11 @@ impl Resolver {
             Expr::Get { obj, name } => todo!(),
             Expr::Grouping(inner) => self.resolve_expr(*inner)?,
             Expr::Lambda { params, body } => {
-                self.resolve_lambda(FunctionContext::Function, &params, body)?;
+                let ctx = JumpContext {
+                    fun_ty: Some(FunctionContextType::Function),
+                    in_loop: false,
+                };
+                self.resolve_lambda(ctx, &params, body)?;
             }
             Expr::Literal(_) => (),
             Expr::Set { obj, name, to } => todo!(),

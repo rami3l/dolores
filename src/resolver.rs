@@ -1,7 +1,7 @@
 mod expr;
 mod stmt;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, mem};
 
 use anyhow::Result;
 
@@ -11,8 +11,8 @@ use crate::{interpreter::Interpreter, lexer::Token, parser::Stmt};
 pub struct Resolver {
     pub interpreter: Interpreter,
     scopes: Vec<Scope>,
-    function_ctx: Option<FunctionContext>,
-    class_ctx: Option<ClassContext>,
+    jump_ctx: JumpContext,
+    class_ctx: ClassContext,
 }
 
 // See: <https://www.craftinginterpreters.com/resolving-and-binding.html#resolving-variable-declarations>
@@ -27,18 +27,26 @@ pub enum ResolutionState {
 
 pub type Scope = HashMap<String, ResolutionState>;
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct JumpContext {
+    pub fun_ty: Option<FunctionContextType>,
+    pub in_loop: bool,
+}
+
 #[derive(Debug, Clone, Copy)]
-pub enum FunctionContext {
+pub enum FunctionContextType {
     Function,
     Initializer,
     Method,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum ClassContext {
+pub enum ClassContextType {
     Class,
     Subclass,
 }
+
+pub type ClassContext = Option<ClassContextType>;
 
 impl Resolver {
     #[must_use]
@@ -87,11 +95,11 @@ impl Resolver {
 
     pub(crate) fn resolve_lambda(
         &mut self,
-        ctx: FunctionContext,
+        ctx: JumpContext,
         params: &[Token],
         body: Vec<Stmt>,
     ) -> Result<()> {
-        let old_ctx = self.function_ctx.replace(ctx);
+        let old_ctx = mem::replace(&mut self.jump_ctx, ctx);
         self.begin_scope();
         for it in params {
             self.declare(it);
@@ -99,7 +107,7 @@ impl Resolver {
         }
         body.into_iter().try_for_each(|it| self.resolve_stmt(it))?;
         self.end_scope();
-        self.function_ctx = old_ctx;
+        self.jump_ctx = old_ctx;
         Ok(())
     }
 

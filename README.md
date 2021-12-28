@@ -6,7 +6,7 @@ My implementation of the Lox Programming Language.
 
 This projet is still a work in progress.
 
-- [ ] AST-walking interpreter
+- [x] AST-walking interpreter
   - [x] Lexer
   - [x] Parser
   - [x] Basic types
@@ -14,7 +14,7 @@ This projet is still a work in progress.
   - [x] Logic expressions
   - [x] Control flow
     - [x] `break`/`continue` syntax extension
-    - [ ] Semantic analysis for jumping out of loops
+    - [x] Semantic analysis for jumping out of loops
   - [x] Functions
     - [x] Lambda syntax extension
     - [x] Semantic analysis for closure captures

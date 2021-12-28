@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use super::{FunctionContext, Resolver};
+use super::{FunctionContextType, JumpContext, Resolver};
 use crate::{parser::Stmt, semantic_bail};
 
 impl Resolver {
@@ -19,8 +19,15 @@ impl Resolver {
             Stmt::Expression(expr) => self.resolve_expr(expr)?,
             Stmt::Fun { name, params, body } => {
                 self.declare(&name);
+                // We define a function's name eagerly to enable hoisting, which is ideal for
+                // usages like recursion. We don't like JavaScript, so we don't
+                // hoist variables.
                 self.define(&name);
-                self.resolve_lambda(FunctionContext::Function, &params, body)?;
+                let ctx = JumpContext {
+                    fun_ty: Some(FunctionContextType::Function),
+                    in_loop: false,
+                };
+                self.resolve_lambda(ctx, &params, body)?;
             }
             Stmt::If {
                 cond,
@@ -34,15 +41,22 @@ impl Resolver {
                 }
             }
             Stmt::Jump(kw) => {
-                // TODO: Add out-of-context jump detection here.
+                if !self.jump_ctx.in_loop {
+                    semantic_bail!(
+                        kw.pos,
+                        "while resolving a Jump statement",
+                        "found `{}` out of loop context",
+                        kw.lexeme,
+                    )
+                }
             }
             Stmt::Print(val) => self.resolve_expr(val)?,
             Stmt::Return { val, kw } => {
-                if self.function_ctx.is_none() {
+                if self.jump_ctx.fun_ty.is_none() {
                     semantic_bail!(
                         kw.pos,
                         "while resolving a Return statement",
-                        "found Return out of function context",
+                        "found `return` out of function context",
                     )
                 }
                 if let Some(val) = val {
@@ -57,8 +71,10 @@ impl Resolver {
                 self.define(&name);
             }
             Stmt::While { cond, body } => {
+                let old_in_loop = std::mem::replace(&mut self.jump_ctx.in_loop, true);
                 self.resolve_expr(cond)?;
                 self.resolve_stmt(*body)?;
+                self.jump_ctx.in_loop = old_in_loop;
             }
         }
         Ok(())

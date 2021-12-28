@@ -6,7 +6,7 @@ pub(crate) mod object;
 mod stmt;
 mod tests;
 
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, mem, sync::Arc};
 
 use anyhow::Result;
 
@@ -42,14 +42,14 @@ impl Interpreter {
     }
 
     pub fn resolve_expr(&mut self, expr: Expr) -> Result<()> {
-        let mut resolver = Resolver::new(std::mem::take(self));
+        let mut resolver = Resolver::new(mem::take(self));
         resolver.resolve_expr(expr)?;
         *self = resolver.interpreter;
         Ok(())
     }
 
     pub fn resolve_stmts(&mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<()> {
-        *self = Resolver::new(std::mem::take(self)).resolve(stmts)?;
+        *self = Resolver::new(mem::take(self)).resolve(stmts)?;
         Ok(())
     }
 }
