@@ -46,6 +46,13 @@ impl From<Class> for Instance {
     }
 }
 
+impl Instance {
+    #[must_use]
+    pub fn get(&self, name: &str) -> Option<Object> {
+        self.fields.get(name).cloned()
+    }
+}
+
 impl Hash for Instance {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.uid.hash(state);

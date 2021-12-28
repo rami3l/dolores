@@ -139,7 +139,20 @@ impl Interpreter {
                 };
                 Ok(res)
             }
-            Expr::Get { obj, name } => todo!(),
+            Expr::Get { obj, name } => {
+                let ctx = "while evaluating a Get expression";
+                let obj = self.eval(*obj)?;
+                if let Object::Instance(i) = obj.clone() {
+                    let lexeme = &name.lexeme;
+                    i.get(lexeme).with_context(|| {
+                        let err_msg =
+                            format!("property `{}` undefined for the given object", lexeme);
+                        runtime_report(name.pos, ctx, err_msg)
+                    })
+                } else {
+                    runtime_bail!(name.pos, ctx, "the object `{}` cannot have properties", obj,)
+                }
+            }
             Expr::Grouping(expr) => self.eval(*expr),
             Expr::Lambda { params, body } => {
                 Ok(Object::NativeFn(Closure::new(None, params, body, env)))

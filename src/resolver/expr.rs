@@ -22,7 +22,7 @@ impl Resolver {
                 self.resolve_expr(*callee)?;
                 args.into_iter().try_for_each(|it| self.resolve_expr(it))?;
             }
-            Expr::Get { obj, name } => todo!(),
+            Expr::Get { obj, .. } => self.resolve_expr(*obj)?,
             Expr::Grouping(inner) => self.resolve_expr(*inner)?,
             Expr::Lambda { params, body } => {
                 let ctx = JumpContext {

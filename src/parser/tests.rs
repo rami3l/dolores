@@ -7,7 +7,7 @@ use pretty_assertions::assert_eq;
 use super::*;
 use crate::lexer::Lexer;
 
-// Expressions.
+// ** Expressions **
 
 fn assert_expr(src: &str, expected: &str) {
     let tokens = Lexer::new(src).analyze();
@@ -113,7 +113,15 @@ fn lambda() {
     );
 }
 
-// Statements & Declarations.
+#[test]
+fn get() {
+    assert_expr(
+        "egg.scramble(3).with(cheddar)",
+        "((. ((. egg scramble) 3) with) cheddar)",
+    );
+}
+
+// ** Statements & Declarations **
 
 fn assert_stmts(src: &str, expected: &[&str]) {
     let tokens = Lexer::new(src).analyze();

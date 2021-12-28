@@ -9,7 +9,7 @@
     unused_allocation
 )]
 // TODO: Remove the whitelist below.
-#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
 
 pub mod cmd;
 pub mod error;

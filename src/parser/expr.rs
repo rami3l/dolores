@@ -77,14 +77,14 @@ impl Display for Expr {
                 write!(f, "({} {} {})", op, lhs, rhs)
             }
             Call { callee, args, .. } => write!(f, "({} {})", callee, args.iter().join(" ")),
-            Get { obj, name } => write!(f, "(obj-get {} '{})", obj, name),
+            Get { obj, name } => write!(f, "(. {} {})", obj, name),
             Grouping(expr) => write!(f, "{}", expr),
             Lambda { params, body } => {
                 let (params, body) = (disp_slice(params, false), disp_slice(body, true));
                 write!(f, "(lambda ({}) {})", params, body)
             }
             Literal(lit) => write!(f, "{}", lit),
-            Set { obj, name, to } => write!(f, "(obj-set! {} '{} {})", obj, name, to),
+            Set { obj, name, to } => write!(f, "(.set! {} {} {})", obj, name, to),
             Super { kw, method } => write!(f, "({} '{})", kw, method),
             This(kw) => write!(f, "({})", kw),
             Unary { op, rhs } => write!(f, "({} {})", op, rhs),
@@ -252,6 +252,16 @@ impl Parser {
                     args,
                     end: self.previous().unwrap(),
                 };
+            } else if self.test(&[Dot]).is_some() {
+                let name = self.consume(
+                    &[Identifier],
+                    "while parsing a Get expression",
+                    "expect property name after `.`",
+                )?;
+                res = Expr::Get {
+                    obj: Box::new(res),
+                    name,
+                }
             } else {
                 break;
             }
