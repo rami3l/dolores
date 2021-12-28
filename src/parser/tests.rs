@@ -298,12 +298,12 @@ fn lambda_expr_stmt() {
 fn class_decl() {
     assert_stmts(
         indoc! {r#"
-            class DevonshireCream {
-                serveOn() {
-                    return "Scones";
+            class Foo {
+                bar(baz, boo) {
+                    return "Boom";
                 }
             }
         "#},
-        &[r#"(class DevonshireCream ((fun serveOn () (return "Scones"))))"#],
+        &[r#"(class Foo ((fun bar (baz boo) (return "Boom"))))"#],
     );
 }

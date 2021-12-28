@@ -10,7 +10,7 @@ use crate::{lexer::Token, parser::Stmt};
 
 #[derive(Debug, Clone)]
 pub struct Closure {
-    uid: Uuid,
+    pub uid: Uuid,
     pub name: Option<String>,
     pub params: Vec<Token>,
     pub body: Vec<Stmt>,

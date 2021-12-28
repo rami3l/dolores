@@ -12,7 +12,7 @@ use std::{collections::HashMap, mem, sync::Arc};
 use anyhow::Result;
 
 pub use self::{
-    class::Class,
+    class::{Class, Instance},
     closure::Closure,
     env::{Env, RcCell},
     jump::{BreakMarker, ContinueMarker, ReturnMarker},

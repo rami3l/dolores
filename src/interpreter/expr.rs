@@ -3,7 +3,6 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context, Result};
 use itertools::{izip, Itertools};
 use tap::prelude::*;
-use uuid::Uuid;
 
 use super::{Env, Interpreter, Object};
 use crate::{
@@ -97,8 +96,7 @@ impl Interpreter {
                         let (expected_len, got_len) = (clos.params.len(), args.len());
                         if expected_len != got_len {
                             runtime_bail!(
-                                // TODO: Fix position maybe?
-                                (0, 0),
+                                end.pos,
                                 "while evaluating a function Call expression",
                                 "unexpected number of parameters (expected {}, got {})",
                                 expected_len,
@@ -122,6 +120,16 @@ impl Interpreter {
                         }
                     }
                     Object::ForeignFn(f) => f(args)?,
+                    Object::Class(c) => {
+                        if !args.is_empty() {
+                            runtime_bail!(
+                                end.pos,
+                                "while evaluating a new Class expression",
+                                "expected no parameters",
+                            )
+                        }
+                        Object::Instance(c.into())
+                    }
                     obj => runtime_bail!(
                         end.pos,
                         "while evaluating a function Call expression",
