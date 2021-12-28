@@ -7,6 +7,14 @@ use anyhow::Result;
 
 use crate::{interpreter::Interpreter, lexer::Token, parser::Stmt};
 
+#[derive(Debug, Clone, Default)]
+pub struct Resolver {
+    pub interpreter: Interpreter,
+    scopes: Vec<Scope>,
+    function_ctx: Option<FunctionContext>,
+    class_ctx: Option<ClassContext>,
+}
+
 // See: <https://www.craftinginterpreters.com/resolving-and-binding.html#resolving-variable-declarations>
 #[derive(Debug, Clone, Copy)]
 pub enum ResolutionState {
@@ -19,10 +27,17 @@ pub enum ResolutionState {
 
 pub type Scope = HashMap<String, ResolutionState>;
 
-#[derive(Debug, Clone, Default)]
-pub struct Resolver {
-    pub interpreter: Interpreter,
-    scopes: Vec<Scope>,
+#[derive(Debug, Clone, Copy)]
+pub enum FunctionContext {
+    Function,
+    Initializer,
+    Method,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ClassContext {
+    Class,
+    Subclass,
 }
 
 impl Resolver {
@@ -30,7 +45,7 @@ impl Resolver {
     pub fn new(interpreter: Interpreter) -> Self {
         Resolver {
             interpreter,
-            scopes: vec![],
+            ..Resolver::default()
         }
     }
 
@@ -56,6 +71,36 @@ impl Resolver {
 
     fn define(&mut self, token: &Token) -> Option<ResolutionState> {
         self.set_state(token, ResolutionState::Defined)
+    }
+
+    fn resolve_local(&mut self, name: &Token) {
+        self.scopes
+            .iter()
+            .rev()
+            .enumerate()
+            .find_map(|(distance, scope)| {
+                scope
+                    .contains_key(&name.lexeme)
+                    .then(|| self.interpreter.locals.insert(name.clone(), distance))
+            });
+    }
+
+    pub(crate) fn resolve_lambda(
+        &mut self,
+        ctx: FunctionContext,
+        params: &[Token],
+        body: Vec<Stmt>,
+    ) -> Result<()> {
+        let old_ctx = self.function_ctx.replace(ctx);
+        self.begin_scope();
+        for it in params {
+            self.declare(it);
+            self.define(it);
+        }
+        body.into_iter().try_for_each(|it| self.resolve_stmt(it))?;
+        self.end_scope();
+        self.function_ctx = old_ctx;
+        Ok(())
     }
 
     pub(crate) fn resolve(mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<Interpreter> {

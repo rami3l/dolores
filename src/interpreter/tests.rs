@@ -201,6 +201,12 @@ fn bare_jump_continue() {
 }
 
 #[test]
+#[should_panic(expected = "found Return out of function context")]
+fn bare_return() {
+    assert_eval(&[("return true;", "")]).unwrap();
+}
+
+#[test]
 fn fun_closure() -> Result<()> {
     assert_eval(&[
         ("var i = 1; fun f(j, k) { return (i + j) * k; }", ""),

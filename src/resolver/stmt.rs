@@ -1,7 +1,7 @@
 use anyhow::Result;
 
-use super::Resolver;
-use crate::parser::Stmt;
+use super::{FunctionContext, Resolver};
+use crate::{parser::Stmt, semantic_bail};
 
 impl Resolver {
     pub(crate) fn resolve_stmt(&mut self, stmt: Stmt) -> Result<()> {
@@ -20,7 +20,7 @@ impl Resolver {
             Stmt::Fun { name, params, body } => {
                 self.declare(&name);
                 self.define(&name);
-                self.resolve_lambda(&params, body)?;
+                self.resolve_lambda(FunctionContext::Function, &params, body)?;
             }
             Stmt::If {
                 cond,
@@ -33,15 +33,21 @@ impl Resolver {
                     self.resolve_stmt(*else_stmt)?;
                 }
             }
-            Stmt::Jump(_) => {
+            Stmt::Jump(kw) => {
                 // TODO: Add out-of-context jump detection here.
             }
             Stmt::Print(val) => self.resolve_expr(val)?,
-            Stmt::Return { val, .. } => {
+            Stmt::Return { val, kw } => {
+                if self.function_ctx.is_none() {
+                    semantic_bail!(
+                        kw.pos,
+                        "while resolving a Return statement",
+                        "found Return out of function context",
+                    )
+                }
                 if let Some(val) = val {
                     self.resolve_expr(val)?;
                 }
-                // TODO: Add out-of-context return detection here.
             }
             Stmt::Var { name, init } => {
                 self.declare(&name);

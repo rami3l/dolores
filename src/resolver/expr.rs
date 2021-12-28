@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use super::{ResolutionState, Resolver};
+use super::{FunctionContext, ResolutionState, Resolver};
 use crate::{
     lexer::Token,
     parser::{Expr, Stmt},
@@ -24,7 +24,9 @@ impl Resolver {
             }
             Expr::Get { obj, name } => todo!(),
             Expr::Grouping(inner) => self.resolve_expr(*inner)?,
-            Expr::Lambda { params, body } => self.resolve_lambda(&params, body)?,
+            Expr::Lambda { params, body } => {
+                self.resolve_lambda(FunctionContext::Function, &params, body)?;
+            }
             Expr::Literal(_) => (),
             Expr::Set { obj, name, to } => todo!(),
             Expr::Super { kw, method } => todo!(),
@@ -44,29 +46,6 @@ impl Resolver {
                 self.resolve_local(&tk);
             }
         }
-        Ok(())
-    }
-
-    fn resolve_local(&mut self, name: &Token) {
-        self.scopes
-            .iter()
-            .rev()
-            .enumerate()
-            .find_map(|(distance, scope)| {
-                scope
-                    .contains_key(&name.lexeme)
-                    .then(|| self.interpreter.locals.insert(name.clone(), distance))
-            });
-    }
-
-    pub(crate) fn resolve_lambda(&mut self, params: &[Token], body: Vec<Stmt>) -> Result<()> {
-        self.begin_scope();
-        for it in params {
-            self.declare(it);
-            self.define(it);
-        }
-        body.into_iter().try_for_each(|it| self.resolve_stmt(it))?;
-        self.end_scope();
         Ok(())
     }
 }
