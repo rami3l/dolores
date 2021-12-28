@@ -189,9 +189,27 @@ fn for_stmt_jump() -> Result<()> {
 }
 
 #[test]
+fn for_stmt_return_in_dup_fun() -> Result<()> {
+    assert_eval(&[(
+        "for(var i = 0; i < 10; i = i + 1) { fun g() { return; } }",
+        "",
+    )])
+}
+
+#[test]
 #[should_panic(expected = "found `break` out of loop context")]
 fn bare_jump_break() {
     assert_eval(&[("break;", "")]).unwrap();
+}
+
+#[test]
+#[should_panic(expected = "found `break` out of loop context")]
+fn bare_jump_break_in_fun() {
+    assert_eval(&[(
+        "for(var i = 0; i < 10; i = i + 1) { fun g() { break; } }",
+        "",
+    )])
+    .unwrap();
 }
 
 #[test]
@@ -201,9 +219,38 @@ fn bare_jump_continue() {
 }
 
 #[test]
+#[should_panic(expected = "found `continue` out of loop context")]
+fn bare_jump_continue_in_fun() {
+    assert_eval(&[(
+        "for(var i = 0; i < 10; i = i + 1) { fun g() { continue; } }",
+        "",
+    )])
+    .unwrap();
+}
+
+#[test]
 #[should_panic(expected = "found `return` out of function context")]
 fn bare_return() {
     assert_eval(&[("return true;", "")]).unwrap();
+}
+
+#[test]
+fn bare_return_in_fun_loop() -> Result<()> {
+    assert_eval(&[
+        (
+            indoc! {"
+                fun fact(n) {
+                    var i; var product;
+                    for (i = product = 1;; i = i + 1) {
+                        product = product * i;
+                        if (i >= n) { return product; }
+                    }
+                }
+            "},
+            "",
+        ),
+        ("fact(5)", "120"),
+    ])
 }
 
 #[test]
