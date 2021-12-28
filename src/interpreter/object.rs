@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use anyhow::{bail, Result};
 
-use super::Closure;
+use super::{Class, Closure};
 use crate::parser::Lit;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -13,6 +13,7 @@ pub enum Object {
     Str(String),
     NativeFn(Closure),
     ForeignFn(fn(Vec<Object>) -> Result<Object>),
+    Class(Class),
 }
 
 impl Default for Object {
@@ -34,6 +35,7 @@ impl Display for Object {
                 clos.name.as_ref().map_or("_", |s| s as _),
             ),
             Object::ForeignFn(_) => write!(f, "<fun: _@foreign>"),
+            Object::Class(c) => write!(f, "<class: {}>", c.name),
         }
     }
 }

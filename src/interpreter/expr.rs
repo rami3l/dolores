@@ -133,13 +133,9 @@ impl Interpreter {
             }
             Expr::Get { obj, name } => todo!(),
             Expr::Grouping(expr) => self.eval(*expr),
-            Expr::Lambda { params, body } => Ok(Object::NativeFn(Closure {
-                uid: Uuid::new_v4(),
-                name: None,
-                params,
-                body,
-                env: Arc::clone(env),
-            })),
+            Expr::Lambda { params, body } => {
+                Ok(Object::NativeFn(Closure::new(None, params, body, env)))
+            }
             Expr::Literal(lit) => Ok(lit.into()),
             Expr::Logical { lhs, op, rhs } => match op.ty {
                 Tk::And => {

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use uuid::Uuid;
 
-use super::{BreakMarker, Closure, ContinueMarker, Env, Interpreter, Object, ReturnMarker};
+use super::{BreakMarker, Class, Closure, ContinueMarker, Env, Interpreter, Object, ReturnMarker};
 use crate::{lexer::TokenType as Tk, parser::Stmt};
 
 impl Interpreter {
@@ -22,19 +22,34 @@ impl Interpreter {
                 name,
                 superclass,
                 methods,
-            } => todo!(),
+            } => {
+                let methods = methods
+                    .into_iter()
+                    .map(|it| {
+                        if let Stmt::Fun { name, params, body } = it {
+                            let name: &str = &name.lexeme;
+                            let closure = Closure::new(name, params, body, env);
+                            (name.to_owned(), Object::NativeFn(closure))
+                        } else {
+                            unreachable!()
+                        }
+                    })
+                    .collect();
+                let class = Object::Class(Class {
+                    // TODO: Add `Class::new` method.
+                    uid: Uuid::new_v4(),
+                    name: name.lexeme.clone(),
+                    // superclass: todo!(),
+                    methods,
+                });
+                self.env.lock().insert_val(&name.lexeme, class);
+            }
             Stmt::Expression(expr) => {
                 self.eval(expr)?;
             }
             Stmt::Fun { name, params, body } => {
-                let name = &name.lexeme;
-                let closure = Object::NativeFn(Closure {
-                    uid: Uuid::new_v4(),
-                    name: Some(name.into()),
-                    params,
-                    body,
-                    env: Arc::clone(env),
-                });
+                let name: &str = &name.lexeme;
+                let closure = Object::NativeFn(Closure::new(name, params, body, env));
                 env.lock().insert_val(name, closure);
             }
             Stmt::If {
@@ -48,7 +63,6 @@ impl Interpreter {
                     self.exec(*else_stmt)?;
                 }
             }
-
             Stmt::Jump(t) => match t.ty {
                 Tk::Break => return Err(anyhow::Error::new(BreakMarker)),
                 Tk::Continue => return Err(anyhow::Error::new(ContinueMarker)),

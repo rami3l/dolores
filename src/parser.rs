@@ -11,6 +11,7 @@ pub(crate) use self::{
     expr::{Expr, Lit},
     stmt::Stmt,
 };
+use crate::bail;
 #[allow(clippy::enum_glob_use)]
 use crate::{
     error::report,
@@ -81,11 +82,20 @@ impl Parser {
         }
     }
 
-    pub(crate) fn many0<T>(
+    pub(crate) fn many<T>(
         &mut self,
         mut parser: impl FnMut(&mut Self) -> Result<T>,
     ) -> Result<Vec<T>> {
         std::iter::from_fn(|| self.peek().map(|_| parser(self))).try_collect()
+    }
+
+    pub(crate) fn many_till<T>(
+        &mut self,
+        mut parser: impl FnMut(&mut Self) -> Result<T>,
+        till: TokenType,
+    ) -> Result<Vec<T>> {
+        std::iter::from_fn(|| self.peek().filter(|t| t.ty != till).map(|_| parser(self)))
+            .try_collect()
     }
 
     pub(crate) fn parens<T>(
@@ -100,6 +110,6 @@ impl Parser {
     }
 
     pub(crate) fn parse(&mut self) -> Result<Vec<Stmt>> {
-        self.many0(Self::decl)
+        self.many(Self::decl)
     }
 }

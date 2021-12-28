@@ -293,3 +293,17 @@ fn lambda_expr_stmt() {
     assert_stmts("(fun () {});", &["(lambda () '())"]);
     assert_stmts("g(fun () {});", &["(g (lambda () '()))"]);
 }
+
+#[test]
+fn class_decl() {
+    assert_stmts(
+        indoc! {r#"
+            class DevonshireCream {
+                serveOn() {
+                    return "Scones";
+                }
+            }
+        "#},
+        &[r#"(class DevonshireCream ((fun serveOn () (return "Scones"))))"#],
+    );
+}

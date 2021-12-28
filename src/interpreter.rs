@@ -1,3 +1,4 @@
+mod class;
 pub(crate) mod closure;
 pub(crate) mod env;
 mod expr;
@@ -11,6 +12,7 @@ use std::{collections::HashMap, mem, sync::Arc};
 use anyhow::Result;
 
 pub use self::{
+    class::Class,
     closure::Closure,
     env::{Env, RcCell},
     jump::{BreakMarker, ContinueMarker, ReturnMarker},

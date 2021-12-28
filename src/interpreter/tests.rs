@@ -441,3 +441,22 @@ fn fun_man_or_boy_10() -> Result<()> {
     handler.join().unwrap()?;
     Ok(())
 }
+
+#[test]
+fn class_empty() -> Result<()> {
+    assert_eval(&[
+        ("class Foo {}", ""),
+        (
+            indoc! {r#"
+                class DevonshireCream {
+                    serveOn() {
+                        return "Scones";
+                    }
+                }
+            "#},
+            "",
+        ),
+        ("Foo", "<class: Foo>"),
+        ("DevonshireCream", "<class: DevonshireCream>"),
+    ])
+}

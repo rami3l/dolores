@@ -15,7 +15,10 @@ impl Resolver {
                 name,
                 superclass,
                 methods,
-            } => todo!(),
+            } => {
+                self.declare(&name);
+                self.define(&name);
+            }
             Stmt::Expression(expr) => self.resolve_expr(expr)?,
             Stmt::Fun { name, params, body } => {
                 self.declare(&name);
