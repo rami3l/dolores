@@ -11,7 +11,6 @@ pub(crate) use self::{
     expr::{Expr, Lit},
     stmt::Stmt,
 };
-use crate::bail;
 #[allow(clippy::enum_glob_use)]
 use crate::{
     error::report,

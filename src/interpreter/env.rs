@@ -1,7 +1,5 @@
 use std::{collections::HashMap, iter, sync::Arc};
 
-use parking_lot::Mutex;
-
 use super::Object;
 use crate::util::{rc_cell_of, RcCell};
 

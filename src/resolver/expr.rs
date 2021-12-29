@@ -1,11 +1,7 @@
 use anyhow::Result;
 
 use super::{FunctionContextType, JumpContext, ResolutionState, Resolver};
-use crate::{
-    lexer::Token,
-    parser::{Expr, Stmt},
-    semantic_bail,
-};
+use crate::{parser::Expr, semantic_bail};
 
 impl Resolver {
     pub(crate) fn resolve_expr(&mut self, expr: Expr) -> Result<()> {
