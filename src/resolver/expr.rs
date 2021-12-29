@@ -33,7 +33,16 @@ impl Resolver {
                 self.resolve_expr(*obj)?;
             }
             Expr::Super { kw, method } => todo!(),
-            Expr::This(_) => todo!(),
+            Expr::This(kw) => {
+                if self.class_ctx.is_none() {
+                    semantic_bail!(
+                        kw.pos,
+                        "while resolving a This expression",
+                        "found `this` out of class context",
+                    )
+                }
+                self.resolve_local(&kw);
+            }
             Expr::Unary { rhs, .. } => self.resolve_expr(*rhs)?,
             Expr::Variable(tk) => {
                 if let Some(ResolutionState::Declared) =

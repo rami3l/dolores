@@ -311,8 +311,6 @@ impl Parser {
     }
 
     fn primary_expr(&mut self) -> Result<Expr> {
-        use Expr::{Grouping, Literal, Variable};
-
         macro_rules! bail_if_matches {
             ( $( $pat:pat = $ty:expr => $res:expr ),+ $(,)? ) => {{
                 $( if let Some($pat) = self.test(&[$ty]) {
@@ -322,10 +320,10 @@ impl Parser {
         }
 
         bail_if_matches! {
-            _ = False => Literal(Lit::Bool(false)),
-            _ = True => Literal(Lit::Bool(true)),
-            _ = Nil => Literal(Lit::Nil),
-            s = Str => Literal(Lit::Str({
+            _ = False => Expr::Literal(Lit::Bool(false)),
+            _ = True => Expr::Literal(Lit::Bool(true)),
+            _ = Nil => Expr::Literal(Lit::Nil),
+            s = Str => Expr::Literal(Lit::Str({
                 s.lexeme
                     .strip_prefix('"')
                     .and_then(|s| s.strip_suffix('"'))
@@ -338,9 +336,10 @@ impl Parser {
                 if let Err(e) = &val {
                     bail!(n.pos, &format!("while parsing Number `{}`", lexeme), e);
                 }
-                Literal(Lit::Number(val.unwrap()))
+                Expr::Literal(Lit::Number(val.unwrap()))
             },
-            ident = Identifier => Variable(ident),
+            t = This => Expr::This(t),
+            i = Identifier => Expr::Variable(i),
             _ = Fun => {
                 let ctx = "while parsing a Lambda expression";
                 self.consume(&[LeftParen], ctx, "expected `(` to begin the parameter list")?;
@@ -364,7 +363,7 @@ impl Parser {
                     self.sync();
                     bail!(lp.pos, "while parsing a parenthesized Group", "`)` expected");
                 }
-                Grouping(Box::new(inner))
+                Expr::Grouping(Box::new(inner))
             },
         };
 

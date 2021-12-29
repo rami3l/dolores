@@ -57,8 +57,9 @@ impl Resolver {
         }
     }
 
-    fn begin_scope(&mut self) {
+    fn begin_scope(&mut self) -> &mut Scope {
         self.scopes.push(HashMap::new());
+        self.scopes.last_mut().unwrap()
     }
 
     fn end_scope(&mut self) -> Option<Scope> {

@@ -5,7 +5,7 @@ use std::{
 
 use uuid::Uuid;
 
-use super::{Object, RcCell};
+use super::{Closure, Env, Object, RcCell};
 use crate::util::rc_cell_of;
 
 #[derive(Debug, Clone)]
@@ -14,6 +14,17 @@ pub struct Class {
     pub name: String,
     // pub superclass: Arc<Class>,
     pub methods: RcCell<HashMap<String, Object>>,
+}
+
+impl Class {
+    #[must_use]
+    pub fn new(name: &str, methods: HashMap<String, Object>) -> Self {
+        Class {
+            uid: Uuid::new_v4(),
+            name: name.into(),
+            methods: rc_cell_of(methods),
+        }
+    }
 }
 
 impl Hash for Class {
@@ -50,7 +61,27 @@ impl From<Class> for Instance {
 impl Instance {
     #[must_use]
     pub fn get(&self, name: &str) -> Option<Object> {
-        self.fields.lock().get(name).cloned()
+        self.fields
+            .lock()
+            .get(name)
+            .cloned()
+            .or_else(|| self.method(name))
+    }
+
+    #[must_use]
+    pub fn method(&self, name: &str) -> Option<Object> {
+        self.class.methods.lock().get(name).cloned().map(|it| {
+            if let Object::NativeFn(clos @ Closure { .. }) = it {
+                let mut env = Env::from_outer(&clos.env);
+                env.insert_val("this", Object::Instance(self.clone()));
+                Object::NativeFn(Closure {
+                    env: env.shared(),
+                    ..clos
+                })
+            } else {
+                unreachable!()
+            }
+        })
     }
 
     #[allow(clippy::must_use_candidate)]

@@ -190,7 +190,13 @@ impl Interpreter {
                 }
             }
             Expr::Super { kw, method } => todo!(),
-            Expr::This(_) => todo!(),
+            Expr::This(kw) => self.lookup(&kw).with_context(|| {
+                runtime_report(
+                    kw.pos,
+                    "while evaluating a This expression",
+                    "identifier `{this}` is undefined",
+                )
+            }),
             Expr::Unary { op, rhs } => match op.ty {
                 Tk::Bang => Ok(Object::Bool(!self.eval(*rhs)?.to_bool())),
                 Tk::Minus => {

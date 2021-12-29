@@ -1,6 +1,8 @@
+use std::mem;
+
 use anyhow::Result;
 
-use super::{FunctionContextType, JumpContext, Resolver};
+use super::{ClassContextType, FunctionContextType, JumpContext, ResolutionState, Resolver};
 use crate::{parser::Stmt, semantic_bail};
 
 impl Resolver {
@@ -16,8 +18,24 @@ impl Resolver {
                 superclass,
                 methods,
             } => {
+                let old_ctx = mem::replace(&mut self.class_ctx, Some(ClassContextType::Class));
                 self.declare(&name);
                 self.define(&name);
+                self.begin_scope()
+                    .insert("this".into(), ResolutionState::Defined);
+                methods.into_iter().try_for_each(|it| {
+                    let ctx = JumpContext {
+                        fun_ty: Some(FunctionContextType::Method),
+                        in_loop: false,
+                    };
+                    if let Stmt::Fun { params, body, .. } = it {
+                        self.resolve_lambda(ctx, &params, body)
+                    } else {
+                        unreachable!()
+                    }
+                })?;
+                self.end_scope();
+                self.class_ctx = old_ctx;
             }
             Stmt::Expression(expr) => self.resolve_expr(expr)?,
             Stmt::Fun { name, params, body } => {

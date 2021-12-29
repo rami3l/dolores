@@ -35,13 +35,7 @@ impl Interpreter {
                         }
                     })
                     .collect();
-                let class = Object::Class(Class {
-                    // TODO: Add `Class::new` method.
-                    uid: Uuid::new_v4(),
-                    name: name.lexeme.clone(),
-                    // superclass: todo!(),
-                    methods: rc_cell_of(methods),
-                });
+                let class = Object::Class(Class::new(&name.lexeme, methods));
                 self.env.lock().insert_val(&name.lexeme, class);
             }
             Stmt::Expression(expr) => {

@@ -125,3 +125,11 @@ fn class_instance_set() {
         "(.set! (. (. breakfast omelette) filling) meat ham)",
     );
 }
+
+#[test]
+fn class_method() {
+    assert_expr(
+        "he.breakfast(omelette.filledWith(cheese), sausage)",
+        "((. he breakfast) ((. omelette filledWith) cheese) sausage)",
+    );
+}

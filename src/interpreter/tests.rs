@@ -495,3 +495,42 @@ fn class_get_invalid() {
 fn class_set_invalid() {
     assert_eval(&[("true.story = 42", "")]).unwrap();
 }
+
+#[test]
+fn class_method_simple() -> Result<()> {
+    assert_eval(&[
+        (r#"class Bacon { eat() { return "crunch"; } }"#, ""),
+        ("Bacon().eat()", r#""crunch""#),
+    ])
+}
+
+#[test]
+fn class_method_this_simple() -> Result<()> {
+    assert_eval(&[
+        (
+            r#"class Egotist { speak() { return "Just " + this.name; } }"#,
+            "",
+        ),
+        (r#"var jimmy = Egotist(); jimmy.name = "Jimmy";"#, ""),
+        ("jimmy.speak()", r#""Just Jimmy""#),
+    ])
+}
+
+#[test]
+fn class_method_this_save() -> Result<()> {
+    assert_eval(&[
+        (
+            r#"class Egotist { speak() { return "Just " + this.name; } }"#,
+            "",
+        ),
+        (r#"var jimmy = Egotist(); jimmy.name = "Jimmy";"#, ""),
+        ("var f = jimmy.speak;", ""),
+        ("f()", r#""Just Jimmy""#),
+    ])
+}
+
+#[test]
+#[should_panic(expected = "found `this` out of class context")]
+fn bare_this() {
+    assert_eval(&[("this;", "")]).unwrap();
+}

@@ -192,10 +192,10 @@ fn class_decl() {
         indoc! {r#"
             class Foo {
                 bar(baz, boo) {
-                    return "Boom";
+                    return this + ": Boom";
                 }
             }
         "#},
-        &[r#"(class Foo ((fun bar (baz boo) (return "Boom"))))"#],
+        &[r#"(class Foo ((fun bar (baz boo) (return (+ (this) ": Boom")))))"#],
     );
 }
