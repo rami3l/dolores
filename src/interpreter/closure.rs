@@ -21,6 +21,7 @@ pub struct Closure {
     pub params: Vec<Token>,
     pub body: Vec<Stmt>,
     pub env: RcCell<Env>,
+    is_init: bool,
 }
 
 impl Closure {
@@ -36,6 +37,19 @@ impl Closure {
             params: params.into_iter().collect(),
             body: body.into_iter().collect(),
             env: Arc::clone(env),
+            is_init: false,
+        }
+    }
+
+    pub fn new_init<'n>(
+        name: impl Into<Option<&'n str>>,
+        params: impl IntoIterator<Item = Token>,
+        body: impl IntoIterator<Item = Stmt>,
+        env: &RcCell<Env>,
+    ) -> Self {
+        Closure {
+            is_init: true,
+            ..Closure::new(name, params, body, env)
         }
     }
 
@@ -70,13 +84,23 @@ impl Closure {
             .try_for_each(|it| interpreter.exec(it));
         // Switch back...
         interpreter.env = old_env;
-        Ok(match res {
-            Err(e) if e.is::<ReturnMarker>() => e.downcast::<ReturnMarker>().unwrap().0,
+        match res {
+            Err(e) if e.is::<ReturnMarker>() => Ok(e.downcast::<ReturnMarker>().unwrap().0),
             e => {
                 e?;
-                Object::Nil
+                if self.is_init {
+                    // Special case: for initializers, we implicitly return `this`.
+                    // This is actually not quite elegant as it adds a branch to all closure
+                    // applications, penalizing the overall performance.
+                    // See: <https://www.craftinginterpreters.com/classes.html#invoking-init-directly>
+                    Env::lookup_dict(&self.env, "this").ok_or_else(|| anyhow::anyhow!(
+                        "Internal Error while applying an initializer Closure: `this` not found in closure environment",
+                    ))
+                } else {
+                    Ok(Object::Nil)
+                }
             }
-        })
+        }
     }
 }
 

@@ -27,7 +27,11 @@ impl Interpreter {
                     .map(|it| {
                         if let Stmt::Fun { name, params, body } = it {
                             let name: &str = &name.lexeme;
-                            let closure = Closure::new(name, params, body, env);
+                            let closure = if name == "init" {
+                                Closure::new_init(name, params, body, env)
+                            } else {
+                                Closure::new(name, params, body, env)
+                            };
                             (name.to_owned(), Object::NativeFn(closure))
                         } else {
                             unreachable!()
