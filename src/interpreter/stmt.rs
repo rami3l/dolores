@@ -65,7 +65,6 @@ impl Interpreter {
                 Tk::Continue => return Err(anyhow::Error::new(ContinueMarker)),
                 _ => unreachable!(),
             },
-
             Stmt::Print(expr) => println!("{}", self.eval(expr)?),
             Stmt::Return { kw: _, val } => {
                 let obj = self.eval(val.unwrap_or_default())?;

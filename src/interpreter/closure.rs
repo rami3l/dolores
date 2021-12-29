@@ -8,11 +8,7 @@ use itertools::izip;
 use uuid::Uuid;
 
 use super::{Env, Instance, Interpreter, Object, RcCell, ReturnMarker};
-use crate::{
-    lexer::Token,
-    parser::{Expr, Stmt},
-    runtime_bail,
-};
+use crate::{lexer::Token, parser::Stmt};
 
 #[derive(Debug, Clone)]
 pub struct Closure {

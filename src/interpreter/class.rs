@@ -5,7 +5,7 @@ use std::{
 
 use uuid::Uuid;
 
-use super::{Closure, Env, Object, RcCell};
+use super::{Object, RcCell};
 use crate::util::rc_cell_of;
 
 #[derive(Debug, Clone)]

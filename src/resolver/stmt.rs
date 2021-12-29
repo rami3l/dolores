@@ -6,6 +6,7 @@ use super::{ClassContextType, FunctionContextType, JumpContext, ResolutionState,
 use crate::{parser::Stmt, semantic_bail};
 
 impl Resolver {
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn resolve_stmt(&mut self, stmt: Stmt) -> Result<()> {
         match stmt {
             Stmt::Block(stmts) => {
@@ -24,11 +25,16 @@ impl Resolver {
                 self.begin_scope()
                     .insert("this".into(), ResolutionState::Defined);
                 methods.into_iter().try_for_each(|it| {
-                    let ctx = JumpContext {
-                        fun_ty: Some(FunctionContextType::Method),
-                        in_loop: false,
-                    };
-                    if let Stmt::Fun { params, body, .. } = it {
+                    if let Stmt::Fun { name, params, body } = it {
+                        let fun_ty = Some(if name.lexeme == "init" {
+                            FunctionContextType::Initializer
+                        } else {
+                            FunctionContextType::Method
+                        });
+                        let ctx = JumpContext {
+                            fun_ty,
+                            in_loop: false,
+                        };
                         self.resolve_lambda(ctx, &params, body)
                     } else {
                         unreachable!()
@@ -78,6 +84,13 @@ impl Resolver {
                         kw.pos,
                         "while resolving a Return statement",
                         "found `return` out of function context",
+                    )
+                }
+                if self.jump_ctx.fun_ty == Some(FunctionContextType::Initializer) && val.is_some() {
+                    semantic_bail!(
+                        kw.pos,
+                        "while resolving a Return statement",
+                        "found returned value in initializer context",
                     )
                 }
                 if let Some(val) = val {

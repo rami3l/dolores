@@ -556,3 +556,14 @@ fn class_initializer() -> Result<()> {
 fn class_initializer_arity() {
     assert_eval(&[("class Foo {}", ""), ("Foo(0, 1, 2)", "")]).unwrap();
 }
+
+#[test]
+fn class_initializer_return() -> Result<()> {
+    assert_eval(&[("class Foo { init(name) { return; } }", "")])
+}
+
+#[test]
+#[should_panic(expected = "found returned value in initializer context")]
+fn class_initializer_return_val() {
+    assert_eval(&[("class Bar { init(name) { return name; } }", "")]).unwrap();
+}

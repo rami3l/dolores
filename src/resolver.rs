@@ -33,14 +33,14 @@ pub struct JumpContext {
     pub in_loop: bool,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FunctionContextType {
     Function,
     Initializer,
     Method,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClassContextType {
     Class,
     Subclass,
