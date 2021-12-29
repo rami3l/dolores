@@ -4,7 +4,7 @@ use anyhow::Result;
 use uuid::Uuid;
 
 use super::{BreakMarker, Class, Closure, ContinueMarker, Env, Interpreter, Object, ReturnMarker};
-use crate::{lexer::TokenType as Tk, parser::Stmt};
+use crate::{lexer::TokenType as Tk, parser::Stmt, util::rc_cell_of};
 
 impl Interpreter {
     pub fn exec(&mut self, stmt: Stmt) -> Result<()> {
@@ -40,7 +40,7 @@ impl Interpreter {
                     uid: Uuid::new_v4(),
                     name: name.lexeme.clone(),
                     // superclass: todo!(),
-                    methods,
+                    methods: rc_cell_of(methods),
                 });
                 self.env.lock().insert_val(&name.lexeme, class);
             }

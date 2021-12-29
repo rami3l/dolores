@@ -460,3 +460,38 @@ fn class_empty() -> Result<()> {
         ("DevonshireCream", "<class: DevonshireCream>"),
     ])
 }
+
+#[test]
+fn class_get_set() -> Result<()> {
+    assert_eval(&[
+        ("class Foo {}", ""),
+        ("var f = Foo();", ""),
+        ("f.bar = 10086;", ""),
+        ("f.bar", "10086"),
+        (r#"f.bar = "foobar""#, r#""foobar""#),
+        ("f.bar", r#""foobar""#),
+    ])
+}
+
+#[test]
+#[should_panic(expected = "property `bar` undefined for the given object")]
+fn class_get_undefined() {
+    assert_eval(&[
+        ("class Foo {}", ""),
+        ("var f = Foo();", ""),
+        (r#"f.bar""#, ""),
+    ])
+    .unwrap();
+}
+
+#[test]
+#[should_panic(expected = "the object `true` cannot have properties")]
+fn class_get_invalid() {
+    assert_eval(&[("true.story", "")]).unwrap();
+}
+
+#[test]
+#[should_panic(expected = "the object `true` cannot have properties")]
+fn class_set_invalid() {
+    assert_eval(&[("true.story = 42", "")]).unwrap();
+}

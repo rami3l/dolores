@@ -5,14 +5,15 @@ use std::{
 
 use uuid::Uuid;
 
-use super::Object;
+use super::{Object, RcCell};
+use crate::util::rc_cell_of;
 
 #[derive(Debug, Clone)]
 pub struct Class {
     pub uid: Uuid,
     pub name: String,
     // pub superclass: Arc<Class>,
-    pub methods: HashMap<String, Object>,
+    pub methods: RcCell<HashMap<String, Object>>,
 }
 
 impl Hash for Class {
@@ -33,7 +34,7 @@ impl Eq for Class {}
 pub struct Instance {
     pub uid: Uuid,
     pub class: Class,
-    pub fields: HashMap<String, Object>,
+    pub fields: RcCell<HashMap<String, Object>>,
 }
 
 impl From<Class> for Instance {
@@ -41,7 +42,7 @@ impl From<Class> for Instance {
         Instance {
             uid: Uuid::new_v4(),
             class,
-            fields: HashMap::new(),
+            fields: rc_cell_of(HashMap::default()),
         }
     }
 }
@@ -49,7 +50,12 @@ impl From<Class> for Instance {
 impl Instance {
     #[must_use]
     pub fn get(&self, name: &str) -> Option<Object> {
-        self.fields.get(name).cloned()
+        self.fields.lock().get(name).cloned()
+    }
+
+    #[allow(clippy::must_use_candidate)]
+    pub fn set(&self, name: &str, to: Object) -> Option<Object> {
+        self.fields.lock().insert(name.into(), to)
     }
 }
 

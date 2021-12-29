@@ -1,6 +1,13 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use itertools::Itertools;
+use parking_lot::Mutex;
+
+pub type RcCell<T> = Arc<Mutex<T>>;
+
+pub fn rc_cell_of<T>(t: T) -> RcCell<T> {
+    Arc::new(Mutex::new(t))
+}
 
 /// Given a source string and an index, returns its (line, column) numbers in
 /// the text editor standard (index starting from 1).

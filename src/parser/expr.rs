@@ -128,15 +128,22 @@ impl Parser {
         let lhs = self.logic_or_expr()?;
         if self.test(&[Equal]).is_some() {
             // Assignment expression detected.
-            if let Expr::Variable(name) = lhs {
-                let val = Box::new(self.assignment_expr()?);
-                return Ok(Expr::Assign { name, val });
+            let mut rhs = || self.assignment_expr();
+            match lhs {
+                Expr::Variable(name) => {
+                    let val = Box::new(rhs()?);
+                    return Ok(Expr::Assign { name, val });
+                }
+                Expr::Get { obj, name } => {
+                    let to = Box::new(rhs()?);
+                    return Ok(Expr::Set { obj, name, to });
+                }
+                _ => bail!(
+                    self.previous().unwrap().pos,
+                    "while parsing a Assignment expression",
+                    "can only assign to a variable",
+                ),
             }
-            bail!(
-                self.previous().unwrap().pos,
-                "while parsing a Assignment expression",
-                "can only assign to a variable",
-            )
         }
         Ok(lhs)
     }

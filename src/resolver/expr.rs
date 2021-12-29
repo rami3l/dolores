@@ -32,7 +32,10 @@ impl Resolver {
                 self.resolve_lambda(ctx, &params, body)?;
             }
             Expr::Literal(_) => (),
-            Expr::Set { obj, name, to } => todo!(),
+            Expr::Set { obj, to, .. } => {
+                self.resolve_expr(*to)?;
+                self.resolve_expr(*obj)?;
+            }
             Expr::Super { kw, method } => todo!(),
             Expr::This(_) => todo!(),
             Expr::Unary { rhs, .. } => self.resolve_expr(*rhs)?,

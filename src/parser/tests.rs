@@ -114,10 +114,18 @@ fn lambda() {
 }
 
 #[test]
-fn get() {
+fn class_instance_get() {
     assert_expr(
         "egg.scramble(3).with(cheddar)",
         "((. ((. egg scramble) 3) with) cheddar)",
+    );
+}
+
+#[test]
+fn class_instance_set() {
+    assert_expr(
+        "breakfast.omelette.filling.meat = ham",
+        "(.set! (. (. breakfast omelette) filling) meat ham)",
     );
 }
 

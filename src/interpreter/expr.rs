@@ -177,7 +177,18 @@ impl Interpreter {
                 }
                 _ => unreachable!(),
             },
-            Expr::Set { obj, name, to } => todo!(),
+            Expr::Set { obj, name, to } => {
+                let ctx = "while evaluating a Set expression";
+                let obj = self.eval(*obj)?;
+                if let Object::Instance(i) = obj.clone() {
+                    let lexeme = &name.lexeme;
+                    let to = self.eval(*to)?;
+                    i.set(lexeme, to.clone());
+                    Ok(to)
+                } else {
+                    runtime_bail!(name.pos, ctx, "the object `{}` cannot have properties", obj,)
+                }
+            }
             Expr::Super { kw, method } => todo!(),
             Expr::This(_) => todo!(),
             Expr::Unary { op, rhs } => match op.ty {
