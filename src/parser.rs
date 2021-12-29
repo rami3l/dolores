@@ -1,6 +1,5 @@
 pub(crate) mod expr;
 pub(crate) mod stmt;
-mod tests;
 
 use std::fmt::Display;
 

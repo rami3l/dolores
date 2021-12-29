@@ -1,3 +1,5 @@
+mod tests;
+
 use std::fmt::Display;
 
 use anyhow::Result;
