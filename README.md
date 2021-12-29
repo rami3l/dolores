@@ -1,10 +1,10 @@
 # Dolores
 
-My implementation of the Lox Programming Language.
+[The Lox Programming Language](https://www.craftinginterpreters.com/the-lox-language.html), implemented in relatively idiomatic Rust.
 
 ## Features
 
-This projet is still a work in progress.
+⚠️ This project is still a work in progress.
 
 - [x] AST-walking interpreter
   - [x] Lexer
@@ -13,15 +13,23 @@ This projet is still a work in progress.
   - [x] Floating point arithmetics
   - [x] Logic expressions
   - [x] Control flow
-    - [x] `break`/`continue` syntax extension
-    - [x] Semantic analysis for jumping out of loops
+    - [x] Jumps: `break`/`continue`\*
+      - [x] Semantic analysis: jumping out of loops
   - [x] Functions
-    - [x] Lambda syntax extension
-    - [x] Semantic analysis for closure captures
-  - [ ] Classes
+    - [x] Lambdas\*
+    - [x] Semantic analysis: returning out of functions
+    - [x] Semantic analysis: static closure captures
+  - [x] Classes
+    - [x] Instances
+    - [x] Instance methods
+      - [x] `this`
+        - [x] Semantic analysis: `this` out of classes
+      - [x] Initializers
+        - [x] Semantic analysis: `return`ing values in initializers
+    - [ ] Static methods\*
     - [ ] Inheritance
-- [ ] Lox VM
-- [ ] Bytecode compiler
+
+\* : Syntax extension
 
 <!--
 
