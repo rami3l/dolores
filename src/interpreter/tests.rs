@@ -534,3 +534,25 @@ fn class_method_this_save() -> Result<()> {
 fn bare_this() {
     assert_eval(&[("this;", "")]).unwrap();
 }
+
+#[test]
+fn class_initializer() -> Result<()> {
+    assert_eval(&[
+        (
+            indoc! {r#"
+                class Egotist {
+                    init(name) { this.name = name; }
+                    speak() { return "Just " + this.name; }
+                }
+            "#},
+            "",
+        ),
+        (r#"Egotist("Jimmy").speak()"#, r#""Just Jimmy""#),
+    ])
+}
+
+#[test]
+#[should_panic(expected = "unexpected number of parameters (expected 0, got 3)")]
+fn class_initializer_arity() {
+    assert_eval(&[("class Foo {}", ""), ("Foo(0, 1, 2)", "")]).unwrap();
+}

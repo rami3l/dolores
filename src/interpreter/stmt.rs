@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use uuid::Uuid;
 
 use super::{BreakMarker, Class, Closure, ContinueMarker, Env, Interpreter, Object, ReturnMarker};
-use crate::{lexer::TokenType as Tk, parser::Stmt, util::rc_cell_of};
+use crate::{lexer::TokenType as Tk, parser::Stmt};
 
 impl Interpreter {
     pub fn exec(&mut self, stmt: Stmt) -> Result<()> {

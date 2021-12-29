@@ -3,10 +3,16 @@ use std::{
     sync::Arc,
 };
 
+use anyhow::Result;
+use itertools::izip;
 use uuid::Uuid;
 
-use super::{Env, RcCell};
-use crate::{lexer::Token, parser::Stmt};
+use super::{Env, Instance, Interpreter, Object, RcCell, ReturnMarker};
+use crate::{
+    lexer::Token,
+    parser::{Expr, Stmt},
+    runtime_bail,
+};
 
 #[derive(Debug, Clone)]
 pub struct Closure {
@@ -31,6 +37,46 @@ impl Closure {
             body: body.into_iter().collect(),
             env: Arc::clone(env),
         }
+    }
+
+    #[must_use]
+    pub fn bind(self, instance: Instance) -> Self {
+        let mut env = Env::from_outer(&self.env);
+        env.insert_val("this", Object::Instance(instance));
+        Closure {
+            env: env.shared(),
+            ..self
+        }
+    }
+
+    pub fn apply(self, interpreter: &mut Interpreter, args: Vec<Object>) -> Result<Object> {
+        // Temporarily switch into the scope environment...
+        let old_env = Arc::clone(&interpreter.env);
+        interpreter.env = Env::from_outer(&self.env).shared();
+        let (expected_len, got_len) = (self.params.len(), args.len());
+        if expected_len != got_len {
+            anyhow::bail!(
+                "[..] unexpected number of parameters (expected {}, got {})",
+                expected_len,
+                got_len
+            )
+        }
+        izip!(self.params.iter(), args).for_each(|(ident, defn)| {
+            interpreter.env.lock().insert_val(&ident.lexeme, defn);
+        });
+        let res = self
+            .body
+            .into_iter()
+            .try_for_each(|it| interpreter.exec(it));
+        // Switch back...
+        interpreter.env = old_env;
+        Ok(match res {
+            Err(e) if e.is::<ReturnMarker>() => e.downcast::<ReturnMarker>().unwrap().0,
+            e => {
+                e?;
+                Object::Nil
+            }
+        })
     }
 }
 

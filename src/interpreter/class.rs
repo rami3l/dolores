@@ -71,13 +71,8 @@ impl Instance {
     #[must_use]
     pub fn method(&self, name: &str) -> Option<Object> {
         self.class.methods.lock().get(name).cloned().map(|it| {
-            if let Object::NativeFn(clos @ Closure { .. }) = it {
-                let mut env = Env::from_outer(&clos.env);
-                env.insert_val("this", Object::Instance(self.clone()));
-                Object::NativeFn(Closure {
-                    env: env.shared(),
-                    ..clos
-                })
+            if let Object::NativeFn(clos) = it {
+                Object::NativeFn(clos.bind(self.clone()))
             } else {
                 unreachable!()
             }

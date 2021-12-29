@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, Context, Result};
-use itertools::{izip, Itertools};
+use itertools::Itertools;
 use tap::prelude::*;
 
-use super::{Env, Interpreter, Object};
+use super::{Closure, Env, Instance, Interpreter, Object};
 use crate::{
     error::runtime_report,
-    interpreter::{Closure, ReturnMarker},
     lexer::{Token, TokenType as Tk},
     parser::Expr,
     runtime_bail,
@@ -16,9 +15,6 @@ use crate::{
 impl Interpreter {
     #[allow(clippy::too_many_lines)]
     pub fn eval(&mut self, expr: Expr) -> Result<Object> {
-        #[allow(clippy::enum_glob_use)]
-        use Object::*;
-
         let env = &Arc::clone(&self.env);
         match expr {
             Expr::Assign { name, val } => {
@@ -43,6 +39,8 @@ impl Interpreter {
                     })
             }
             Expr::Binary { lhs, op, rhs } => {
+                #[allow(clippy::enum_glob_use)]
+                use Object::*;
                 Ok(match (op.ty, self.eval(*lhs)?, self.eval(*rhs)?) {
                     (Tk::Plus, Str(lhs), Str(rhs)) => Str(lhs + &rhs),
                     (Tk::Plus, Str(lhs), rhs) => Str(lhs + &format!("{}", rhs)),
@@ -89,46 +87,27 @@ impl Interpreter {
                 let callee = self.eval(*callee)?;
                 let args: Vec<Object> = args.into_iter().map(|i| self.eval(i)).try_collect()?;
                 let res = match callee {
-                    Object::NativeFn(clos) => {
-                        // Temporarily switch into the scope environment...
-                        let old_env = Arc::clone(&self.env);
-                        self.env = Env::from_outer(&clos.env).shared();
-                        let (expected_len, got_len) = (clos.params.len(), args.len());
-                        if expected_len != got_len {
-                            runtime_bail!(
-                                end.pos,
-                                "while evaluating a function Call expression",
-                                "unexpected number of parameters (expected {}, got {})",
-                                expected_len,
-                                got_len
-                            )
-                        }
-                        izip!(clos.params.iter(), args).for_each(|(ident, defn)| {
-                            self.env.lock().insert_val(&ident.lexeme, defn);
-                        });
-                        let res = clos.body.into_iter().try_for_each(|it| self.exec(it));
-                        // Switch back...
-                        self.env = old_env;
-                        match res {
-                            Err(e) if e.is::<ReturnMarker>() => {
-                                e.downcast::<ReturnMarker>().unwrap().0
-                            }
-                            e => {
-                                e?;
-                                Object::Nil
-                            }
-                        }
-                    }
+                    Object::NativeFn(clos) => clos.apply(self, args).with_context(|| {
+                        runtime_report(end.pos, "while evaluating a function Call expression", "")
+                    })?,
                     Object::ForeignFn(f) => f(args)?,
                     Object::Class(c) => {
-                        if !args.is_empty() {
+                        let instance = Instance::from(c);
+                        if let Some(it) = instance.method("init") {
+                            if let Object::NativeFn(clos) = it {
+                                clos.bind(instance.clone()).apply(self, args)?;
+                            } else {
+                                unreachable!();
+                            }
+                        } else if !args.is_empty() {
                             runtime_bail!(
                                 end.pos,
                                 "while evaluating a new Class expression",
-                                "expected no parameters",
-                            )
+                                "unexpected number of parameters (expected 0, got {})",
+                                args.len(),
+                            );
                         }
-                        Object::Instance(c.into())
+                        Object::Instance(instance)
                     }
                     obj => runtime_bail!(
                         end.pos,
@@ -150,7 +129,7 @@ impl Interpreter {
                         runtime_report(name.pos, ctx, err_msg)
                     })
                 } else {
-                    runtime_bail!(name.pos, ctx, "the object `{}` cannot have properties", obj,)
+                    runtime_bail!(name.pos, ctx, "the object `{}` cannot have properties", obj);
                 }
             }
             Expr::Grouping(expr) => self.eval(*expr),
