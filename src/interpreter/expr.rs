@@ -179,6 +179,8 @@ impl Interpreter {
                         dist,
                     )
                 };
+                // When evaluating a superclass method, `this` is always bound to the class
+                // where `super` appears, and `super` to its direct superclass.
                 let this_env =
                     &Env::outer_nth(env, distance - 1).ok_or_else(|| outer_err(distance - 1))?;
                 let this = Env::lookup_dict(this_env, "this").with_context(|| {

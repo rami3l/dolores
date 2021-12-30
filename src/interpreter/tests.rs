@@ -649,3 +649,15 @@ fn class_super_method_super_trap() {
         ("C().test()", r#""A method""#),
     ]);
 }
+
+#[test]
+#[should_panic(expected = "found `super` out of subclass context")]
+fn bare_super() {
+    assert_eval(&[("super.method();", "")]);
+}
+
+#[test]
+#[should_panic(expected = "found `super` out of subclass context")]
+fn class_super_method_not_sub() {
+    assert_eval(&[("class A { method() { return super.method(); } }", "")]);
+}
