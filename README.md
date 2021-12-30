@@ -26,7 +26,6 @@
         - [x] Semantic analysis: `this` out of classes
       - [x] Initializers
         - [x] Semantic analysis: `return`ing values in initializers
-    - [ ] Static methods\*
     - [ ] Inheritance
 
 \* : Syntax extension

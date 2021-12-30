@@ -168,12 +168,48 @@ impl Interpreter {
                     runtime_bail!(name.pos, ctx, "the object `{}` cannot have properties", obj)
                 }
             }
-            Expr::Super { kw, method } => todo!(),
+            Expr::Super { kw, method } => {
+                let ctx = "while evaluating a superclass method";
+                let distance = *self.locals.get(&kw).with_context(|| {
+                    runtime_report(kw.pos, ctx, "identifier `super` is undefined")
+                })?;
+                let outer_err = |dist| {
+                    anyhow!(
+                        "Internal Error while looking up `super`: distance ({}) out of range",
+                        dist,
+                    )
+                };
+                let this_env =
+                    &Env::outer_nth(env, distance - 1).ok_or_else(|| outer_err(distance - 1))?;
+                let this = Env::lookup_dict(this_env, "this").with_context(|| {
+                    runtime_report(kw.pos, ctx, "identifier `this` is undefined")
+                })?;
+                let sup_env = &Env::outer_nth(this_env, 1).ok_or_else(|| outer_err(distance))?;
+                let sup = Env::lookup_dict(sup_env, "super").with_context(|| {
+                    runtime_report(kw.pos, ctx, "identifier `super` is undefined")
+                })?;
+                match (this, sup) {
+                    (Object::Instance(this), Object::Class(sup)) => {
+                        let lexeme = &method.lexeme;
+                        let method = sup.method(lexeme).with_context(|| {
+                            let err_msg =
+                                format!("property `{}` undefined for the given object", lexeme);
+                            runtime_report(method.pos, ctx, err_msg)
+                        })?;
+                        if let Object::NativeFn(clos) = method {
+                            Ok(Object::NativeFn(clos.bind(this)))
+                        } else {
+                            unreachable!()
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
             Expr::This(kw) => self.lookup(&kw).with_context(|| {
                 runtime_report(
                     kw.pos,
                     "while evaluating a This expression",
-                    "identifier `{this}` is undefined",
+                    "identifier `this` is undefined",
                 )
             }),
             Expr::Unary { op, rhs } => match op.ty {

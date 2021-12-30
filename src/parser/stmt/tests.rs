@@ -154,20 +154,6 @@ fn block_stmt_no_rightbrace() {
 }
 
 #[test]
-fn fun_call() {
-    assert_stmts(
-        "func (c) (u, r) (r(y), i) (n) (g) ();",
-        &["((((((func c) u r) (r y) i) n) g) )"],
-    );
-}
-
-#[test]
-#[should_panic(expected = "expected `)` to end the parameter list")]
-fn fun_call_typo() {
-    assert_stmts("func (c) (u, r (r(y), i) (n) (g) ();", &[]);
-}
-
-#[test]
 fn fun_decl() {
     assert_stmts("fun foo() { }", &["(fun foo () '())"]);
     assert_stmts(

@@ -604,3 +604,48 @@ fn class_super_method() {
         (r#"Teal("Jog").speak()"#, r#""Jog: Quack.""#),
     ]);
 }
+
+#[test]
+fn class_super_method_super() {
+    assert_eval(&[
+        (
+            indoc! {r#"
+                class Duck {
+                    init(name) { this.name = name; }
+                    speak() { return this.name + ": Quack."; }
+                }
+            "#},
+            "",
+        ),
+        (
+            indoc! {r#"
+                class DuckSpeaker < Duck {
+                    speak() { return this.name + ": Double plus good."; }
+                    speak_more() { return super.speak() + " Double plus good."; }
+                }
+            "#},
+            "",
+        ),
+        (r#"var jog = DuckSpeaker("Jog");"#, ""),
+        ("jog.speak()", r#""Jog: Double plus good.""#),
+        ("jog.speak_more()", r#""Jog: Quack. Double plus good.""#),
+    ]);
+}
+
+#[test]
+fn class_super_method_super_trap() {
+    assert_eval(&[
+        (r#"class A { method() { return "A method"; } }"#, ""),
+        (
+            indoc! {r#"
+                class B < A {
+                    method() { return "B method"; }
+                    test() { return super.method(); }
+                }
+            "#},
+            "",
+        ),
+        ("class C < B {}", ""),
+        ("C().test()", r#""A method""#),
+    ]);
+}

@@ -78,7 +78,13 @@ impl Display for Expr {
             Binary { lhs, op, rhs } | Logical { lhs, op, rhs } => {
                 write!(f, "({} {} {})", op, lhs, rhs)
             }
-            Call { callee, args, .. } => write!(f, "({} {})", callee, args.iter().join(" ")),
+            Call { callee, args, .. } => {
+                if args.is_empty() {
+                    write!(f, "({})", callee)
+                } else {
+                    write!(f, "({} {})", callee, args.iter().join(" "))
+                }
+            }
             Get { obj, name } => write!(f, "(. {} {})", obj, name),
             Grouping(expr) => write!(f, "{}", expr),
             Lambda { params, body } => {
@@ -87,8 +93,8 @@ impl Display for Expr {
             }
             Literal(lit) => write!(f, "{}", lit),
             Set { obj, name, to } => write!(f, "(.set! {} {} {})", obj, name, to),
-            Super { kw, method } => write!(f, "({} '{})", kw, method),
-            This(kw) => write!(f, "({})", kw),
+            Super { method, .. } => write!(f, "(. (super) {})", method),
+            This(_) => write!(f, "(this)"),
             Unary { op, rhs } => write!(f, "({} {})", op, rhs),
             Variable(var) => write!(f, "{}", var),
         }
@@ -364,6 +370,12 @@ impl Parser {
                     bail!(lp.pos, "while parsing a parenthesized Group", "`)` expected");
                 }
                 Expr::Grouping(Box::new(inner))
+            },
+            kw = Super => {
+                let ctx = "while parsing a superclass method";
+                self.consume(&[Dot], ctx, "expected `.` after `super`")?;
+                let method = self.consume(&[Identifier], ctx, "expected superclass method name after `.`")?;
+                Expr::Super { kw, method }
             },
         };
 

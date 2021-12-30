@@ -22,11 +22,21 @@ impl Resolver {
                 superclass,
                 methods,
             } => {
-                let old_ctx = mem::replace(&mut self.class_ctx, Some(ClassContextType::Class));
+                let is_sub = superclass.is_some();
+                let old_ctx = mem::replace(
+                    &mut self.class_ctx,
+                    Some(if is_sub {
+                        ClassContextType::Subclass
+                    } else {
+                        ClassContextType::Class
+                    }),
+                );
                 self.declare(&name);
                 self.define(&name);
-                if let Some(it) = superclass {
-                    if let Expr::Variable(ref sup) = it {
+                if is_sub {
+                    // This is a safe unwrap since `superclass.is_some()`.
+                    let sup = superclass.unwrap();
+                    if let Expr::Variable(ref sup) = sup {
                         if sup.lexeme == name.lexeme {
                             semantic_bail!(
                                 sup.pos,
@@ -36,7 +46,10 @@ impl Resolver {
                             )
                         }
                     }
-                    self.resolve_expr(it)?;
+                    self.resolve_expr(sup)?;
+                    // Only subclasses can have `super`.
+                    self.begin_scope()
+                        .insert("super".into(), ResolutionState::Defined);
                 }
                 self.begin_scope()
                     .insert("this".into(), ResolutionState::Defined);
@@ -57,6 +70,9 @@ impl Resolver {
                     }
                 })?;
                 self.end_scope();
+                if is_sub {
+                    self.end_scope();
+                }
                 self.class_ctx = old_ctx;
             }
             Stmt::Expression(expr) => self.resolve_expr(expr)?,

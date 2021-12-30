@@ -101,9 +101,23 @@ fn bool_logic() {
 }
 
 #[test]
+fn fun_call() {
+    assert_expr(
+        "func (c) (u, r) (r(y), i) (n) (g) ()",
+        "((((((func c) u r) (r y) i) n) g))",
+    );
+}
+
+#[test]
+#[should_panic(expected = "expected `)` to end the parameter list")]
+fn fun_call_typo() {
+    assert_expr("func (c) (u, r (r(y), i) (n) (g) ()", "");
+}
+
+#[test]
 fn lambda() {
     assert_expr("fun () { }", "(lambda () '())");
-    assert_expr("fun () { } ()", "((lambda () '()) )");
+    assert_expr("fun () { } ()", "((lambda () '()))");
     assert_expr(
         "fun (a, b, c, d) { print a * b - c / d; }",
         "(lambda (a b c d) (print (- (* a b) (/ c d))))",
@@ -132,4 +146,9 @@ fn class_method() {
         "he.breakfast(omelette.filledWith(cheese), sausage)",
         "((. he breakfast) ((. omelette filledWith) cheese) sausage)",
     );
+}
+
+#[test]
+fn class_super() {
+    assert_expr("super.method()", "((. (super) method))");
 }

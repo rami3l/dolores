@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use super::{FunctionContextType, JumpContext, ResolutionState, Resolver};
+use super::{ClassContextType, FunctionContextType, JumpContext, ResolutionState, Resolver};
 use crate::{parser::Expr, semantic_bail};
 
 impl Resolver {
@@ -32,7 +32,16 @@ impl Resolver {
                 self.resolve_expr(*to)?;
                 self.resolve_expr(*obj)?;
             }
-            Expr::Super { kw, method } => todo!(),
+            Expr::Super { kw, .. } => {
+                if self.class_ctx != Some(ClassContextType::Subclass) {
+                    semantic_bail!(
+                        kw.pos,
+                        "while resolving a superclass method",
+                        "found `super` out of subclass context",
+                    )
+                }
+                self.resolve_local(&kw);
+            }
             Expr::This(kw) => {
                 if self.class_ctx.is_none() {
                     semantic_bail!(

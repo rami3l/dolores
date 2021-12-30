@@ -22,10 +22,12 @@ impl Interpreter {
                 superclass,
                 methods,
             } => {
-                let superclass = if let Some(it) = superclass {
+                let (ref env, superclass) = if let Some(it) = superclass {
                     let sup = self.eval(it)?;
                     if let Object::Class(ref sup) = sup {
-                        Some(sup.clone())
+                        let mut super_env = Env::from_outer(env);
+                        super_env.insert_val("super", Object::Class(sup.clone()));
+                        (super_env.shared(), Some(sup.clone()))
                     } else {
                         runtime_bail!(
                             name.pos,
@@ -36,7 +38,7 @@ impl Interpreter {
                         )
                     }
                 } else {
-                    None
+                    (Arc::clone(env), None)
                 };
                 let methods = methods
                     .into_iter()
