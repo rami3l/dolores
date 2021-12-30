@@ -93,7 +93,7 @@ impl Interpreter {
                     Object::ForeignFn(f) => f(args)?,
                     Object::Class(c) => {
                         let instance = Instance::from(c);
-                        if let Some(it) = instance.method("init") {
+                        if let Some(it) = instance.class.method("init") {
                             if let Object::NativeFn(clos) = it {
                                 clos.bind(instance.clone()).apply(self, args)?;
                             } else {
@@ -121,7 +121,7 @@ impl Interpreter {
             Expr::Get { obj, name } => {
                 let ctx = "while evaluating a Get expression";
                 let obj = self.eval(*obj)?;
-                if let Object::Instance(i) = obj.clone() {
+                if let Object::Instance(ref i) = obj {
                     let lexeme = &name.lexeme;
                     i.get(lexeme).with_context(|| {
                         let err_msg =
@@ -159,13 +159,13 @@ impl Interpreter {
             Expr::Set { obj, name, to } => {
                 let ctx = "while evaluating a Set expression";
                 let obj = self.eval(*obj)?;
-                if let Object::Instance(i) = obj.clone() {
+                if let Object::Instance(ref i) = obj {
                     let lexeme = &name.lexeme;
                     let to = self.eval(*to)?;
                     i.set(lexeme, to.clone());
                     Ok(to)
                 } else {
-                    runtime_bail!(name.pos, ctx, "the object `{}` cannot have properties", obj,)
+                    runtime_bail!(name.pos, ctx, "the object `{}` cannot have properties", obj)
                 }
             }
             Expr::Super { kw, method } => todo!(),

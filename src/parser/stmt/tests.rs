@@ -199,3 +199,29 @@ fn class_decl() {
         &[r#"(class Foo ((fun bar (baz boo) (return (+ (this) ": Boom")))))"#],
     );
 }
+
+#[test]
+#[should_panic(expected = "expected `{` after class name")]
+fn class_decl_no_braces() {
+    assert_stmts("class Foo", &[""]);
+}
+
+#[test]
+fn class_decl_super() {
+    assert_stmts(
+        indoc! {r#"
+            class Foo < Bar {
+                bar(baz, boo) {
+                    return this + ": Boom";
+                }
+            }
+        "#},
+        &[r#"(class Foo (<: Bar) ((fun bar (baz boo) (return (+ (this) ": Boom")))))"#],
+    );
+}
+
+#[test]
+#[should_panic(expected = "expected superclass name after `<`")]
+fn class_decl_no_super() {
+    assert_stmts("class Foo < {}", &[""]);
+}

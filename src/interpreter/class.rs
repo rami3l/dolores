@@ -12,18 +12,32 @@ use crate::util::rc_cell_of;
 pub struct Class {
     pub uid: Uuid,
     pub name: String,
-    // pub superclass: Arc<Class>,
+    pub superclass: Option<Box<Class>>,
     pub methods: RcCell<HashMap<String, Object>>,
 }
 
 impl Class {
     #[must_use]
-    pub fn new(name: &str, methods: HashMap<String, Object>) -> Self {
+    pub fn new(
+        name: &str,
+        superclass: impl Into<Option<Class>>,
+        methods: HashMap<String, Object>,
+    ) -> Self {
         Class {
             uid: Uuid::new_v4(),
             name: name.into(),
+            superclass: superclass.into().map(Box::new),
             methods: rc_cell_of(methods),
         }
+    }
+
+    #[must_use]
+    pub fn method(&self, name: &str) -> Option<Object> {
+        self.methods
+            .lock()
+            .get(name)
+            .cloned()
+            .or_else(|| self.superclass.as_ref().and_then(|sup| sup.method(name)))
     }
 }
 
@@ -61,21 +75,14 @@ impl From<Class> for Instance {
 impl Instance {
     #[must_use]
     pub fn get(&self, name: &str) -> Option<Object> {
-        self.fields
-            .lock()
-            .get(name)
-            .cloned()
-            .or_else(|| self.method(name))
-    }
-
-    #[must_use]
-    pub fn method(&self, name: &str) -> Option<Object> {
-        self.class.methods.lock().get(name).cloned().map(|it| {
-            if let Object::NativeFn(clos) = it {
-                Object::NativeFn(clos.bind(self.clone()))
-            } else {
-                unreachable!()
-            }
+        self.fields.lock().get(name).cloned().or_else(|| {
+            self.class.method(name).map(|it| {
+                if let Object::NativeFn(clos) = it {
+                    Object::NativeFn(clos.bind(self.clone()))
+                } else {
+                    unreachable!()
+                }
+            })
         })
     }
 

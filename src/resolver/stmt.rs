@@ -3,7 +3,10 @@ use std::mem;
 use anyhow::Result;
 
 use super::{ClassContextType, FunctionContextType, JumpContext, ResolutionState, Resolver};
-use crate::{parser::Stmt, semantic_bail};
+use crate::{
+    parser::{Expr, Stmt},
+    semantic_bail,
+};
 
 impl Resolver {
     #[allow(clippy::too_many_lines)]
@@ -22,6 +25,19 @@ impl Resolver {
                 let old_ctx = mem::replace(&mut self.class_ctx, Some(ClassContextType::Class));
                 self.declare(&name);
                 self.define(&name);
+                if let Some(it) = superclass {
+                    if let Expr::Variable(ref sup) = it {
+                        if sup.lexeme == name.lexeme {
+                            semantic_bail!(
+                                sup.pos,
+                                "while resolving a Class declaration",
+                                "class `{}` cannot inherit from itself",
+                                sup.lexeme,
+                            )
+                        }
+                    }
+                    self.resolve_expr(it)?;
+                }
                 self.begin_scope()
                     .insert("this".into(), ResolutionState::Defined);
                 methods.into_iter().try_for_each(|it| {

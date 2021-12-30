@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 
 use super::{BreakMarker, Class, Closure, ContinueMarker, Env, Interpreter, Object, ReturnMarker};
-use crate::{lexer::TokenType as Tk, parser::Stmt};
+use crate::{lexer::TokenType as Tk, parser::Stmt, runtime_bail};
 
 impl Interpreter {
     pub fn exec(&mut self, stmt: Stmt) -> Result<()> {
@@ -22,6 +22,22 @@ impl Interpreter {
                 superclass,
                 methods,
             } => {
+                let superclass = if let Some(it) = superclass {
+                    let sup = self.eval(it)?;
+                    if let Object::Class(ref sup) = sup {
+                        Some(sup.clone())
+                    } else {
+                        runtime_bail!(
+                            name.pos,
+                            "while evaluating a Class declaration",
+                            "class `{}` cannot inherit from non-class value `{}`",
+                            name.lexeme,
+                            sup
+                        )
+                    }
+                } else {
+                    None
+                };
                 let methods = methods
                     .into_iter()
                     .map(|it| {
@@ -38,7 +54,7 @@ impl Interpreter {
                         }
                     })
                     .collect();
-                let class = Object::Class(Class::new(&name.lexeme, methods));
+                let class = Object::Class(Class::new(&name.lexeme, superclass, methods));
                 self.env.lock().insert_val(&name.lexeme, class);
             }
             Stmt::Expression(expr) => {
