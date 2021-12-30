@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use anyhow::{bail, Result};
 
-use super::Closure;
+use super::{Class, Closure, Instance};
 use crate::parser::Lit;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -13,6 +13,8 @@ pub enum Object {
     Str(String),
     NativeFn(Closure),
     ForeignFn(fn(Vec<Object>) -> Result<Object>),
+    Class(Class),
+    Instance(Instance),
 }
 
 impl Default for Object {
@@ -31,9 +33,11 @@ impl Display for Object {
             Object::NativeFn(clos) => write!(
                 f,
                 "<fun: {}@native>",
-                clos.name.as_ref().map_or("_", |s| s as _),
+                clos.name.clone().unwrap_or_else(|| clos.uid.to_string()),
             ),
             Object::ForeignFn(_) => write!(f, "<fun: _@foreign>"),
+            Object::Class(c) => write!(f, "<class: {}>", c.name),
+            Object::Instance(i) => write!(f, "<instance: {}@{}>", i.uid, i.class.name),
         }
     }
 }

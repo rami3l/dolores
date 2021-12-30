@@ -33,14 +33,14 @@ pub struct JumpContext {
     pub in_loop: bool,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FunctionContextType {
     Function,
     Initializer,
     Method,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ClassContextType {
     Class,
     Subclass,
@@ -57,8 +57,9 @@ impl Resolver {
         }
     }
 
-    fn begin_scope(&mut self) {
+    fn begin_scope(&mut self) -> &mut Scope {
         self.scopes.push(HashMap::new());
+        self.scopes.last_mut().unwrap()
     }
 
     fn end_scope(&mut self) -> Option<Scope> {

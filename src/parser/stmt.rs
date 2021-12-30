@@ -1,3 +1,5 @@
+mod tests;
+
 use std::fmt::Display;
 
 use anyhow::{Context, Result};
@@ -7,7 +9,7 @@ use tap::TapFallible;
 use super::{Expr, Lit, Parser};
 #[allow(clippy::enum_glob_use)]
 use crate::lexer::{Token, TokenType::*};
-use crate::{error::report, util::disp_slice};
+use crate::{bail, error::report, util::disp_slice};
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
@@ -59,7 +61,7 @@ impl Display for Stmt {
             } => {
                 let superclass = superclass
                     .as_ref()
-                    .map_or_else(String::new, |sup| format!(" (extends {})", sup));
+                    .map_or_else(String::new, |sup| format!(" (<: {})", sup));
                 let methods = disp_slice(methods, false);
                 write!(f, "(class {}{} ({}))", name, superclass, methods)
             }
@@ -100,13 +102,42 @@ impl Display for Stmt {
 // ** Recursive Descent for Stmt and Decl **
 impl Parser {
     pub(crate) fn decl(&mut self) -> Result<Stmt> {
-        match self.test(&[Fun, Var]) {
+        match self.test(&[Class, Fun, Var]) {
+            Some(t) if t.ty == Class => self.class_decl(),
             Some(t) if t.ty == Fun => self.fun_decl(),
             Some(t) if t.ty == Var => self.var_decl(),
             None => self.stmt(),
             _ => unreachable!(),
         }
         .tap_err(|_| self.sync())
+    }
+
+    fn class_decl(&mut self) -> Result<Stmt> {
+        let ctx = "while parsing a Class declaration";
+        let name = self.consume(&[Identifier], ctx, "expected class name")?;
+        let superclass = if self.test(&[Less]).is_some() {
+            let super_name =
+                self.consume(&[Identifier], ctx, "expected superclass name after `<`")?;
+            Some(Expr::Variable(super_name))
+        } else {
+            None
+        };
+        self.consume(&[LeftBrace], ctx, "expected `{` after class name")?;
+        let methods = self.many_till(Self::fun_decl, RightBrace)?;
+        if self.test(&[RightBrace]).is_none() {
+            self.sync();
+            let ctx = "while parsing Class method list";
+            bail!(
+                self.previous().unwrap().pos,
+                ctx,
+                "expected `}` to end the class body",
+            )
+        }
+        Ok(Stmt::Class {
+            name,
+            methods,
+            superclass,
+        })
     }
 
     fn fun_decl(&mut self) -> Result<Stmt> {

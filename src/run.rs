@@ -38,17 +38,15 @@ pub(crate) fn run_str(src: &str, interpreter: &mut Interpreter, repl_mode: bool)
         {
             Parser::new(tokens)
                 .expr()
+                .map_err(|e1| {
+                    e.context("[REPL] statement parsing failed, falling back to expression parsing")
+                        .context(e1)
+                })
                 .and_then(|expr| {
                     interpreter.resolve_expr(expr.clone())?;
                     interpreter.eval(expr)
                 })
                 .map(|obj| format!("{}", obj))
-                .map_err(|e1| {
-                    e.context(
-                        "REPL mode: statement parsing failed, falling back to expression parsing",
-                    )
-                    .context(e1)
-                })
         }
         Err(e) => Err(e),
     }

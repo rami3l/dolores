@@ -1,10 +1,7 @@
 use std::{collections::HashMap, iter, sync::Arc};
 
-use parking_lot::Mutex;
-
 use super::Object;
-
-pub type RcCell<T> = Arc<Mutex<T>>;
+use crate::util::{rc_cell_of, RcCell};
 
 #[derive(Debug, Default, Clone)]
 pub struct Env {
@@ -33,7 +30,7 @@ impl Env {
 
     #[must_use]
     pub fn shared(self) -> RcCell<Self> {
-        Arc::new(Mutex::new(self))
+        rc_cell_of(self)
     }
 
     /*

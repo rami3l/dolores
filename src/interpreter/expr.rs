@@ -1,14 +1,12 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, Context, Result};
-use itertools::{izip, Itertools};
+use itertools::Itertools;
 use tap::prelude::*;
-use uuid::Uuid;
 
-use super::{Env, Interpreter, Object};
+use super::{Closure, Env, Instance, Interpreter, Object};
 use crate::{
     error::runtime_report,
-    interpreter::{Closure, ReturnMarker},
     lexer::{Token, TokenType as Tk},
     parser::Expr,
     runtime_bail,
@@ -17,9 +15,6 @@ use crate::{
 impl Interpreter {
     #[allow(clippy::too_many_lines)]
     pub fn eval(&mut self, expr: Expr) -> Result<Object> {
-        #[allow(clippy::enum_glob_use)]
-        use Object::*;
-
         let env = &Arc::clone(&self.env);
         match expr {
             Expr::Assign { name, val } => {
@@ -44,6 +39,8 @@ impl Interpreter {
                     })
             }
             Expr::Binary { lhs, op, rhs } => {
+                #[allow(clippy::enum_glob_use)]
+                use Object::*;
                 Ok(match (op.ty, self.eval(*lhs)?, self.eval(*rhs)?) {
                     (Tk::Plus, Str(lhs), Str(rhs)) => Str(lhs + &rhs),
                     (Tk::Plus, Str(lhs), rhs) => Str(lhs + &format!("{}", rhs)),
@@ -90,38 +87,28 @@ impl Interpreter {
                 let callee = self.eval(*callee)?;
                 let args: Vec<Object> = args.into_iter().map(|i| self.eval(i)).try_collect()?;
                 let res = match callee {
-                    Object::NativeFn(clos) => {
-                        // Temporarily switch into the scope environment...
-                        let old_env = Arc::clone(&self.env);
-                        self.env = Env::from_outer(&clos.env).shared();
-                        let (expected_len, got_len) = (clos.params.len(), args.len());
-                        if expected_len != got_len {
-                            runtime_bail!(
-                                // TODO: Fix position maybe?
-                                (0, 0),
-                                "while evaluating a function Call expression",
-                                "unexpected number of parameters (expected {}, got {})",
-                                expected_len,
-                                got_len
-                            )
-                        }
-                        izip!(clos.params.iter(), args).for_each(|(ident, defn)| {
-                            self.env.lock().insert_val(&ident.lexeme, defn);
-                        });
-                        let res = clos.body.into_iter().try_for_each(|it| self.exec(it));
-                        // Switch back...
-                        self.env = old_env;
-                        match res {
-                            Err(e) if e.is::<ReturnMarker>() => {
-                                e.downcast::<ReturnMarker>().unwrap().0
-                            }
-                            e => {
-                                e?;
-                                Object::Nil
-                            }
-                        }
-                    }
+                    Object::NativeFn(clos) => clos.apply(self, args).with_context(|| {
+                        runtime_report(end.pos, "while evaluating a function Call expression", "")
+                    })?,
                     Object::ForeignFn(f) => f(args)?,
+                    Object::Class(c) => {
+                        let instance = Instance::from(c);
+                        if let Some(it) = instance.class.method("init") {
+                            if let Object::NativeFn(clos) = it {
+                                clos.bind(instance.clone()).apply(self, args)?;
+                            } else {
+                                unreachable!();
+                            }
+                        } else if !args.is_empty() {
+                            runtime_bail!(
+                                end.pos,
+                                "while evaluating a new Class expression",
+                                "unexpected number of parameters (expected 0, got {})",
+                                args.len(),
+                            );
+                        }
+                        Object::Instance(instance)
+                    }
                     obj => runtime_bail!(
                         end.pos,
                         "while evaluating a function Call expression",
@@ -131,15 +118,24 @@ impl Interpreter {
                 };
                 Ok(res)
             }
-            Expr::Get { obj, name } => todo!(),
+            Expr::Get { obj, name } => {
+                let ctx = "while evaluating a Get expression";
+                let obj = self.eval(*obj)?;
+                if let Object::Instance(ref i) = obj {
+                    let lexeme = &name.lexeme;
+                    i.get(lexeme).with_context(|| {
+                        let err_msg =
+                            format!("property `{}` undefined for the given object", lexeme);
+                        runtime_report(name.pos, ctx, err_msg)
+                    })
+                } else {
+                    runtime_bail!(name.pos, ctx, "the object `{}` cannot have properties", obj);
+                }
+            }
             Expr::Grouping(expr) => self.eval(*expr),
-            Expr::Lambda { params, body } => Ok(Object::NativeFn(Closure {
-                uid: Uuid::new_v4(),
-                name: None,
-                params,
-                body,
-                env: Arc::clone(env),
-            })),
+            Expr::Lambda { params, body } => {
+                Ok(Object::NativeFn(Closure::new(None, params, body, env)))
+            }
             Expr::Literal(lit) => Ok(lit.into()),
             Expr::Logical { lhs, op, rhs } => match op.ty {
                 Tk::And => {
@@ -160,9 +156,64 @@ impl Interpreter {
                 }
                 _ => unreachable!(),
             },
-            Expr::Set { obj, name, to } => todo!(),
-            Expr::Super { kw, method } => todo!(),
-            Expr::This(_) => todo!(),
+            Expr::Set { obj, name, to } => {
+                let ctx = "while evaluating a Set expression";
+                let obj = self.eval(*obj)?;
+                if let Object::Instance(ref i) = obj {
+                    let lexeme = &name.lexeme;
+                    let to = self.eval(*to)?;
+                    i.set(lexeme, to.clone());
+                    Ok(to)
+                } else {
+                    runtime_bail!(name.pos, ctx, "the object `{}` cannot have properties", obj)
+                }
+            }
+            Expr::Super { kw, method } => {
+                let ctx = "while evaluating a superclass method";
+                let distance = *self.locals.get(&kw).with_context(|| {
+                    runtime_report(kw.pos, ctx, "identifier `super` is undefined")
+                })?;
+                let outer_err = |dist| {
+                    anyhow!(
+                        "Internal Error while looking up `super`: distance ({}) out of range",
+                        dist,
+                    )
+                };
+                // When evaluating a superclass method, `this` is always bound to the class
+                // where `super` appears, and `super` to its direct superclass.
+                let this_env =
+                    &Env::outer_nth(env, distance - 1).ok_or_else(|| outer_err(distance - 1))?;
+                let this = Env::lookup_dict(this_env, "this").with_context(|| {
+                    runtime_report(kw.pos, ctx, "identifier `this` is undefined")
+                })?;
+                let sup_env = &Env::outer_nth(this_env, 1).ok_or_else(|| outer_err(distance))?;
+                let sup = Env::lookup_dict(sup_env, "super").with_context(|| {
+                    runtime_report(kw.pos, ctx, "identifier `super` is undefined")
+                })?;
+                match (this, sup) {
+                    (Object::Instance(this), Object::Class(sup)) => {
+                        let lexeme = &method.lexeme;
+                        let method = sup.method(lexeme).with_context(|| {
+                            let err_msg =
+                                format!("property `{}` undefined for the given object", lexeme);
+                            runtime_report(method.pos, ctx, err_msg)
+                        })?;
+                        if let Object::NativeFn(clos) = method {
+                            Ok(Object::NativeFn(clos.bind(this)))
+                        } else {
+                            unreachable!()
+                        }
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            Expr::This(kw) => self.lookup(&kw).with_context(|| {
+                runtime_report(
+                    kw.pos,
+                    "while evaluating a This expression",
+                    "identifier `this` is undefined",
+                )
+            }),
             Expr::Unary { op, rhs } => match op.ty {
                 Tk::Bang => Ok(Object::Bool(!self.eval(*rhs)?.to_bool())),
                 Tk::Minus => {

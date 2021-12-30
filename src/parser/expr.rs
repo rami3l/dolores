@@ -1,3 +1,5 @@
+mod tests;
+
 use std::fmt::Display;
 
 use anyhow::Result;
@@ -76,17 +78,23 @@ impl Display for Expr {
             Binary { lhs, op, rhs } | Logical { lhs, op, rhs } => {
                 write!(f, "({} {} {})", op, lhs, rhs)
             }
-            Call { callee, args, .. } => write!(f, "({} {})", callee, args.iter().join(" ")),
-            Get { obj, name } => write!(f, "(obj-get {} '{})", obj, name),
+            Call { callee, args, .. } => {
+                if args.is_empty() {
+                    write!(f, "({})", callee)
+                } else {
+                    write!(f, "({} {})", callee, args.iter().join(" "))
+                }
+            }
+            Get { obj, name } => write!(f, "(. {} {})", obj, name),
             Grouping(expr) => write!(f, "{}", expr),
             Lambda { params, body } => {
                 let (params, body) = (disp_slice(params, false), disp_slice(body, true));
                 write!(f, "(lambda ({}) {})", params, body)
             }
             Literal(lit) => write!(f, "{}", lit),
-            Set { obj, name, to } => write!(f, "(obj-set! {} '{} {})", obj, name, to),
-            Super { kw, method } => write!(f, "({} '{})", kw, method),
-            This(kw) => write!(f, "({})", kw),
+            Set { obj, name, to } => write!(f, "(.set! {} {} {})", obj, name, to),
+            Super { method, .. } => write!(f, "(. (super) {})", method),
+            This(_) => write!(f, "(this)"),
             Unary { op, rhs } => write!(f, "({} {})", op, rhs),
             Variable(var) => write!(f, "{}", var),
         }
@@ -128,15 +136,22 @@ impl Parser {
         let lhs = self.logic_or_expr()?;
         if self.test(&[Equal]).is_some() {
             // Assignment expression detected.
-            if let Expr::Variable(name) = lhs {
-                let val = Box::new(self.assignment_expr()?);
-                return Ok(Expr::Assign { name, val });
+            let mut rhs = || self.assignment_expr();
+            match lhs {
+                Expr::Variable(name) => {
+                    let val = Box::new(rhs()?);
+                    return Ok(Expr::Assign { name, val });
+                }
+                Expr::Get { obj, name } => {
+                    let to = Box::new(rhs()?);
+                    return Ok(Expr::Set { obj, name, to });
+                }
+                _ => bail!(
+                    self.previous().unwrap().pos,
+                    "while parsing a Assignment expression",
+                    "can only assign to a variable",
+                ),
             }
-            bail!(
-                self.previous().unwrap().pos,
-                "while parsing a Assignment expression",
-                "can only assign to a variable",
-            )
         }
         Ok(lhs)
     }
@@ -252,6 +267,16 @@ impl Parser {
                     args,
                     end: self.previous().unwrap(),
                 };
+            } else if self.test(&[Dot]).is_some() {
+                let name = self.consume(
+                    &[Identifier],
+                    "while parsing a Get expression",
+                    "expect property name after `.`",
+                )?;
+                res = Expr::Get {
+                    obj: Box::new(res),
+                    name,
+                }
             } else {
                 break;
             }
@@ -292,8 +317,6 @@ impl Parser {
     }
 
     fn primary_expr(&mut self) -> Result<Expr> {
-        use Expr::{Grouping, Literal, Variable};
-
         macro_rules! bail_if_matches {
             ( $( $pat:pat = $ty:expr => $res:expr ),+ $(,)? ) => {{
                 $( if let Some($pat) = self.test(&[$ty]) {
@@ -303,10 +326,10 @@ impl Parser {
         }
 
         bail_if_matches! {
-            _ = False => Literal(Lit::Bool(false)),
-            _ = True => Literal(Lit::Bool(true)),
-            _ = Nil => Literal(Lit::Nil),
-            s = Str => Literal(Lit::Str({
+            _ = False => Expr::Literal(Lit::Bool(false)),
+            _ = True => Expr::Literal(Lit::Bool(true)),
+            _ = Nil => Expr::Literal(Lit::Nil),
+            s = Str => Expr::Literal(Lit::Str({
                 s.lexeme
                     .strip_prefix('"')
                     .and_then(|s| s.strip_suffix('"'))
@@ -319,9 +342,10 @@ impl Parser {
                 if let Err(e) = &val {
                     bail!(n.pos, &format!("while parsing Number `{}`", lexeme), e);
                 }
-                Literal(Lit::Number(val.unwrap()))
+                Expr::Literal(Lit::Number(val.unwrap()))
             },
-            ident = Identifier => Variable(ident),
+            t = This => Expr::This(t),
+            i = Identifier => Expr::Variable(i),
             _ = Fun => {
                 let ctx = "while parsing a Lambda expression";
                 self.consume(&[LeftParen], ctx, "expected `(` to begin the parameter list")?;
@@ -345,7 +369,13 @@ impl Parser {
                     self.sync();
                     bail!(lp.pos, "while parsing a parenthesized Group", "`)` expected");
                 }
-                Grouping(Box::new(inner))
+                Expr::Grouping(Box::new(inner))
+            },
+            kw = Super => {
+                let ctx = "while parsing a superclass method";
+                self.consume(&[Dot], ctx, "expected `.` after `super`")?;
+                let method = self.consume(&[Identifier], ctx, "expected superclass method name after `.`")?;
+                Expr::Super { kw, method }
             },
         };
 

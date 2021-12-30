@@ -8,6 +8,8 @@
     trivial_numeric_casts,
     unused_allocation
 )]
+// TODO: Remove the whitelist below.
+#![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
 
 pub mod cmd;
 pub mod error;
@@ -16,4 +18,4 @@ pub mod lexer;
 pub mod parser;
 pub mod resolver;
 pub mod run;
-mod util;
+pub mod util;

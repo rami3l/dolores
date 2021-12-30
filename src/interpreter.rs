@@ -1,3 +1,4 @@
+mod class;
 pub(crate) mod closure;
 pub(crate) mod env;
 mod expr;
@@ -11,8 +12,9 @@ use std::{collections::HashMap, mem, sync::Arc};
 use anyhow::Result;
 
 pub use self::{
+    class::{Class, Instance},
     closure::Closure,
-    env::{Env, RcCell},
+    env::Env,
     jump::{BreakMarker, ContinueMarker, ReturnMarker},
     object::Object,
 };
@@ -20,6 +22,7 @@ use crate::{
     lexer::Token,
     parser::{Expr, Stmt},
     resolver::Resolver,
+    util::RcCell,
 };
 
 /// The interpreter, containing the necessary evaluation context for expressions

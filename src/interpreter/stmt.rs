@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use uuid::Uuid;
 
-use super::{BreakMarker, Closure, ContinueMarker, Env, Interpreter, Object, ReturnMarker};
-use crate::{lexer::TokenType as Tk, parser::Stmt};
+use super::{BreakMarker, Class, Closure, ContinueMarker, Env, Interpreter, Object, ReturnMarker};
+use crate::{lexer::TokenType as Tk, parser::Stmt, runtime_bail};
 
 impl Interpreter {
     pub fn exec(&mut self, stmt: Stmt) -> Result<()> {
@@ -22,19 +21,50 @@ impl Interpreter {
                 name,
                 superclass,
                 methods,
-            } => todo!(),
+            } => {
+                let (ref env, superclass) = if let Some(it) = superclass {
+                    let sup = self.eval(it)?;
+                    if let Object::Class(ref sup) = sup {
+                        let mut super_env = Env::from_outer(env);
+                        super_env.insert_val("super", Object::Class(sup.clone()));
+                        (super_env.shared(), Some(sup.clone()))
+                    } else {
+                        runtime_bail!(
+                            name.pos,
+                            "while evaluating a Class declaration",
+                            "class `{}` cannot inherit from non-class value `{}`",
+                            name.lexeme,
+                            sup
+                        )
+                    }
+                } else {
+                    (Arc::clone(env), None)
+                };
+                let methods = methods
+                    .into_iter()
+                    .map(|it| {
+                        if let Stmt::Fun { name, params, body } = it {
+                            let name: &str = &name.lexeme;
+                            let closure = if name == "init" {
+                                Closure::new_init(name, params, body, env)
+                            } else {
+                                Closure::new(name, params, body, env)
+                            };
+                            (name.to_owned(), Object::NativeFn(closure))
+                        } else {
+                            unreachable!()
+                        }
+                    })
+                    .collect();
+                let class = Object::Class(Class::new(&name.lexeme, superclass, methods));
+                self.env.lock().insert_val(&name.lexeme, class);
+            }
             Stmt::Expression(expr) => {
                 self.eval(expr)?;
             }
             Stmt::Fun { name, params, body } => {
-                let name = &name.lexeme;
-                let closure = Object::NativeFn(Closure {
-                    uid: Uuid::new_v4(),
-                    name: Some(name.into()),
-                    params,
-                    body,
-                    env: Arc::clone(env),
-                });
+                let name: &str = &name.lexeme;
+                let closure = Object::NativeFn(Closure::new(name, params, body, env));
                 env.lock().insert_val(name, closure);
             }
             Stmt::If {
@@ -48,13 +78,11 @@ impl Interpreter {
                     self.exec(*else_stmt)?;
                 }
             }
-
             Stmt::Jump(t) => match t.ty {
                 Tk::Break => return Err(anyhow::Error::new(BreakMarker)),
                 Tk::Continue => return Err(anyhow::Error::new(ContinueMarker)),
                 _ => unreachable!(),
             },
-
             Stmt::Print(expr) => println!("{}", self.eval(expr)?),
             Stmt::Return { kw: _, val } => {
                 let obj = self.eval(val.unwrap_or_default())?;

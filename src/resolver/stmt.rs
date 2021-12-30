@@ -1,9 +1,15 @@
+use std::mem;
+
 use anyhow::Result;
 
-use super::{FunctionContextType, JumpContext, Resolver};
-use crate::{parser::Stmt, semantic_bail};
+use super::{ClassContextType, FunctionContextType, JumpContext, ResolutionState, Resolver};
+use crate::{
+    parser::{Expr, Stmt},
+    semantic_bail,
+};
 
 impl Resolver {
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn resolve_stmt(&mut self, stmt: Stmt) -> Result<()> {
         match stmt {
             Stmt::Block(stmts) => {
@@ -15,7 +21,60 @@ impl Resolver {
                 name,
                 superclass,
                 methods,
-            } => todo!(),
+            } => {
+                let is_sub = superclass.is_some();
+                let old_ctx = mem::replace(
+                    &mut self.class_ctx,
+                    Some(if is_sub {
+                        ClassContextType::Subclass
+                    } else {
+                        ClassContextType::Class
+                    }),
+                );
+                self.declare(&name);
+                self.define(&name);
+                if is_sub {
+                    // This is a safe unwrap since `superclass.is_some()`.
+                    let sup = superclass.unwrap();
+                    if let Expr::Variable(ref sup) = sup {
+                        if sup.lexeme == name.lexeme {
+                            semantic_bail!(
+                                sup.pos,
+                                "while resolving a Class declaration",
+                                "class `{}` cannot inherit from itself",
+                                sup.lexeme,
+                            )
+                        }
+                    }
+                    self.resolve_expr(sup)?;
+                    // Only subclasses can have `super`.
+                    self.begin_scope()
+                        .insert("super".into(), ResolutionState::Defined);
+                }
+                self.begin_scope()
+                    .insert("this".into(), ResolutionState::Defined);
+                methods.into_iter().try_for_each(|it| {
+                    if let Stmt::Fun { name, params, body } = it {
+                        let fun_ty = Some(if name.lexeme == "init" {
+                            FunctionContextType::Initializer
+                        } else {
+                            FunctionContextType::Method
+                        });
+                        let ctx = JumpContext {
+                            fun_ty,
+                            in_loop: false,
+                        };
+                        self.resolve_lambda(ctx, &params, body)
+                    } else {
+                        unreachable!()
+                    }
+                })?;
+                self.end_scope();
+                if is_sub {
+                    self.end_scope();
+                }
+                self.class_ctx = old_ctx;
+            }
             Stmt::Expression(expr) => self.resolve_expr(expr)?,
             Stmt::Fun { name, params, body } => {
                 self.declare(&name);
@@ -57,6 +116,13 @@ impl Resolver {
                         kw.pos,
                         "while resolving a Return statement",
                         "found `return` out of function context",
+                    )
+                }
+                if self.jump_ctx.fun_ty == Some(FunctionContextType::Initializer) && val.is_some() {
+                    semantic_bail!(
+                        kw.pos,
+                        "while resolving a Return statement",
+                        "found returned value in initializer context",
                     )
                 }
                 if let Some(val) = val {

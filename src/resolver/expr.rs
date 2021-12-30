@@ -1,11 +1,7 @@
 use anyhow::Result;
 
-use super::{FunctionContextType, JumpContext, ResolutionState, Resolver};
-use crate::{
-    lexer::Token,
-    parser::{Expr, Stmt},
-    semantic_bail,
-};
+use super::{ClassContextType, FunctionContextType, JumpContext, ResolutionState, Resolver};
+use crate::{parser::Expr, semantic_bail};
 
 impl Resolver {
     pub(crate) fn resolve_expr(&mut self, expr: Expr) -> Result<()> {
@@ -22,7 +18,7 @@ impl Resolver {
                 self.resolve_expr(*callee)?;
                 args.into_iter().try_for_each(|it| self.resolve_expr(it))?;
             }
-            Expr::Get { obj, name } => todo!(),
+            Expr::Get { obj, .. } => self.resolve_expr(*obj)?,
             Expr::Grouping(inner) => self.resolve_expr(*inner)?,
             Expr::Lambda { params, body } => {
                 let ctx = JumpContext {
@@ -32,9 +28,30 @@ impl Resolver {
                 self.resolve_lambda(ctx, &params, body)?;
             }
             Expr::Literal(_) => (),
-            Expr::Set { obj, name, to } => todo!(),
-            Expr::Super { kw, method } => todo!(),
-            Expr::This(_) => todo!(),
+            Expr::Set { obj, to, .. } => {
+                self.resolve_expr(*to)?;
+                self.resolve_expr(*obj)?;
+            }
+            Expr::Super { kw, .. } => {
+                if self.class_ctx != Some(ClassContextType::Subclass) {
+                    semantic_bail!(
+                        kw.pos,
+                        "while resolving a superclass method",
+                        "found `super` out of subclass context",
+                    )
+                }
+                self.resolve_local(&kw);
+            }
+            Expr::This(kw) => {
+                if self.class_ctx.is_none() {
+                    semantic_bail!(
+                        kw.pos,
+                        "while resolving a This expression",
+                        "found `this` out of class context",
+                    )
+                }
+                self.resolve_local(&kw);
+            }
             Expr::Unary { rhs, .. } => self.resolve_expr(*rhs)?,
             Expr::Variable(tk) => {
                 if let Some(ResolutionState::Declared) =
