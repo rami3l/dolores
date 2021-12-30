@@ -1,10 +1,25 @@
-# Dolores
+# dolores
 
-[The Lox Programming Language](https://www.craftinginterpreters.com/the-lox-language.html), implemented in relatively idiomatic Rust.
+> "... light of my life."
+
+[The Lox Programming Language](https://www.craftinginterpreters.com/the-lox-language.html) implemented in idiomatic Rust.
+
+Ported from the original Java implementation `jlox`, but with no visitor patterns, no `null` values, no subclasses and implicit conversions, just pure `enum`s.
+
+~~`Arc<T>` is a necessary evil...~~
+
+---
+
+## Contents
+
+- [dolores](#dolores)
+  - [Contents](#contents)
+  - [Features](#features)
+  - [Try it out!](#try-it-out)
+
+---
 
 ## Features
-
-⚠️ This project is still a work in progress.
 
 - [x] AST-walking interpreter
   - [x] Lexer
@@ -32,38 +47,10 @@
 
 \* : Syntax extension
 
-<!--
+## Try it out!
 
-## Getting Started
+With the latest [Rust toolchain](https://www.rust-lang.org/tools/install) installed, just execute:
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
-
-### Prerequisites
-
-The things you need before installing the software.
-
-- You need this
-- And you need this
-- Oh, and don't forget this
-
-### Installation
-
-A step by step guide that will tell you how to get the development environment up and running.
-
+```bash
+cargo run
 ```
-$ First step
-$ Another step
-$ Final step
-```
-
-## Usage
-
-A few examples of useful commands and/or tasks.
-
-```
-$ First example
-$ Second example
-$ And keep this in mind
-```
-
--->
