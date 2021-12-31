@@ -1,9 +1,7 @@
 use std::fmt::Display;
 
 use logos::Logos;
-use num_enum::IntoPrimitive;
-
-use crate::util::index_to_pos;
+use num_enum::{FromPrimitive, IntoPrimitive};
 
 pub(crate) struct Lexer<'s> {
     inner: logos::Lexer<'s, SyntaxKind>,
@@ -15,14 +13,13 @@ impl<'s> Lexer<'s> {
             inner: SyntaxKind::lexer(src),
         }
     }
+}
 
-    pub(crate) fn analyze(self) -> impl Iterator<Item = Token> + 's {
-        let src = self.inner.source();
-        self.inner.spanned().map(|(ty, span)| Token {
-            ty,
-            pos: index_to_pos(src, span.start),
-            lexeme: src[span].into(),
-        })
+impl<'s> Iterator for Lexer<'s> {
+    type Item = (SyntaxKind, &'s str);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|tk| (tk, self.inner.slice()))
     }
 }
 
@@ -41,7 +38,9 @@ impl Display for Token {
     }
 }
 
-#[derive(Logos, Debug, PartialEq, Eq, Clone, Copy, Hash, IntoPrimitive)]
+#[derive(
+    Logos, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, FromPrimitive, IntoPrimitive,
+)]
 #[repr(u16)]
 pub(crate) enum SyntaxKind {
     // Single-character tokens.
@@ -176,6 +175,7 @@ pub(crate) enum SyntaxKind {
     SingleLineComment,
 
     #[error]
+    #[default]
     #[regex(r"[ \t\n\f]+", logos::skip)]
     Error,
 }
@@ -190,8 +190,7 @@ mod tests {
 
     fn lex(src: &str) -> Vec<(SyntaxKind, String)> {
         Lexer::new(src)
-            .analyze()
-            .map(|t| (t.ty, t.lexeme))
+            .map(|(kind, lexeme)| (kind, lexeme.into()))
             .collect()
     }
 
