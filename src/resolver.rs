@@ -51,9 +51,9 @@ pub(crate) type ClassContext = Option<ClassContextType>;
 impl Resolver {
     #[must_use]
     pub(crate) fn new(interpreter: Interpreter) -> Self {
-        Resolver {
+        Self {
             interpreter,
-            ..Resolver::default()
+            ..Self::default()
         }
     }
 
