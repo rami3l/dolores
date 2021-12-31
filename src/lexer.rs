@@ -1,17 +1,18 @@
 use std::fmt::Display;
 
 use logos::Logos;
+use num_enum::IntoPrimitive;
 
 use crate::util::index_to_pos;
 
 pub(crate) struct Lexer<'s> {
-    inner: logos::Lexer<'s, TokenType>,
+    inner: logos::Lexer<'s, SyntaxKind>,
 }
 
 impl<'s> Lexer<'s> {
     pub(crate) fn new(src: &'s str) -> Self {
         Self {
-            inner: TokenType::lexer(src),
+            inner: SyntaxKind::lexer(src),
         }
     }
 
@@ -27,7 +28,7 @@ impl<'s> Lexer<'s> {
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub(crate) struct Token {
-    pub(crate) ty: TokenType,
+    pub(crate) ty: SyntaxKind,
     pub(crate) lexeme: String,
     /// The `(line_num, column_num)` pair of the starting position of this
     /// token, in the text editor standard (index starting from 1).
@@ -40,9 +41,9 @@ impl Display for Token {
     }
 }
 
-#[derive(Logos, Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(Logos, Debug, PartialEq, Eq, Clone, Copy, Hash, IntoPrimitive)]
 #[repr(u16)]
-pub(crate) enum TokenType {
+pub(crate) enum SyntaxKind {
     // Single-character tokens.
     #[token("(")]
     LeftParen,
@@ -187,7 +188,7 @@ mod tests {
 
     use super::*;
 
-    fn lex(src: &str) -> Vec<(TokenType, String)> {
+    fn lex(src: &str) -> Vec<(SyntaxKind, String)> {
         Lexer::new(src)
             .analyze()
             .map(|t| (t.ty, t.lexeme))

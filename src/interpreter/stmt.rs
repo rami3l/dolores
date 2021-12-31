@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 
 use super::{BreakMarker, Class, Closure, ContinueMarker, Env, Interpreter, Object, ReturnMarker};
-use crate::{lexer::TokenType as Tk, parser::Stmt, runtime_bail};
+use crate::{lexer::SyntaxKind as Tk, parser::Stmt, runtime_bail};
 
 impl Interpreter {
     pub(crate) fn exec(&mut self, stmt: Stmt) -> Result<()> {

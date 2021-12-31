@@ -7,7 +7,7 @@ use tap::prelude::*;
 use super::{Closure, Env, Instance, Interpreter, Object};
 use crate::{
     error::runtime_report,
-    lexer::{Token, TokenType as Tk},
+    lexer::{SyntaxKind as Tk, Token},
     parser::Expr,
     runtime_bail,
 };

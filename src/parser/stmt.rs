@@ -8,7 +8,7 @@ use tap::TapFallible;
 
 use super::{Expr, Lit, Parser};
 #[allow(clippy::enum_glob_use)]
-use crate::lexer::{Token, TokenType::*};
+use crate::lexer::{SyntaxKind::*, Token};
 use crate::{bail, error::report, util::disp_slice};
 
 #[derive(Debug, Clone)]

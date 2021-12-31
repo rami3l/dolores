@@ -11,8 +11,8 @@ use crate::util::disp_slice;
 use crate::{
     bail,
     lexer::{
+        SyntaxKind::{self, *},
         Token,
-        TokenType::{self, *},
     },
 };
 
@@ -179,7 +179,7 @@ impl Parser {
     }
 
     #[allow(clippy::similar_names)]
-    fn recursive_descent_binary<F>(&mut self, tys: &[TokenType], descend_parse: F) -> Result<Expr>
+    fn recursive_descent_binary<F>(&mut self, tys: &[SyntaxKind], descend_parse: F) -> Result<Expr>
     where
         F: Fn(&mut Self) -> Result<Expr>,
     {

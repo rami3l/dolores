@@ -14,8 +14,8 @@ pub(crate) use self::{
 use crate::{
     error::report,
     lexer::{
+        SyntaxKind::{self, *},
         Token,
-        TokenType::{self, *},
     },
 };
 
@@ -46,11 +46,11 @@ impl Parser {
         self.tokens.get(self.idx - 1).cloned()
     }
 
-    fn check(&mut self, ty: TokenType) -> Option<Token> {
+    fn check(&mut self, ty: SyntaxKind) -> Option<Token> {
         self.peek().filter(|t| t.ty == ty)
     }
 
-    fn test(&mut self, tys: &[TokenType]) -> Option<Token> {
+    fn test(&mut self, tys: &[SyntaxKind]) -> Option<Token> {
         tys.iter().find_map(|&ty| {
             let curr = self.peek();
             self.check(ty).and_then(|_| {
@@ -61,7 +61,7 @@ impl Parser {
     }
 
     /// Consumes a specific token or throws an error.
-    fn consume(&mut self, tys: &[TokenType], ctx: &str, msg: impl Display) -> Result<Token> {
+    fn consume(&mut self, tys: &[SyntaxKind], ctx: &str, msg: impl Display) -> Result<Token> {
         self.test(tys)
             .with_context(|| report(self.previous().unwrap().pos, ctx, msg))
     }
@@ -90,7 +90,7 @@ impl Parser {
     pub(crate) fn many_till<T>(
         &mut self,
         mut parser: impl FnMut(&mut Self) -> Result<T>,
-        till: TokenType,
+        till: SyntaxKind,
     ) -> Result<Vec<T>> {
         std::iter::from_fn(|| self.peek().filter(|t| t.ty != till).map(|_| parser(self)))
             .try_collect()
