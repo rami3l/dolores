@@ -12,12 +12,12 @@ pub(crate) struct Env {
 impl Env {
     #[must_use]
     pub(crate) fn new(dict: HashMap<String, Object>) -> Self {
-        Env { dict, outer: None }
+        Self { dict, outer: None }
     }
 
     #[must_use]
     pub(crate) fn from_outer(outer: &RcCell<Env>) -> Self {
-        Env {
+        Self {
             dict: HashMap::new(),
             outer: Some(Arc::clone(outer)),
         }

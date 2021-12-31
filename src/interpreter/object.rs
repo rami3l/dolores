@@ -19,7 +19,7 @@ pub(crate) enum Object {
 
 impl Default for Object {
     fn default() -> Self {
-        Object::Nil
+        Self::Nil
     }
 }
 
@@ -45,10 +45,10 @@ impl Display for Object {
 impl From<Lit> for Object {
     fn from(lit: Lit) -> Self {
         match lit {
-            Lit::Nil => Object::Nil,
-            Lit::Bool(b) => Object::Bool(b),
-            Lit::Number(n) => Object::Number(n),
-            Lit::Str(s) => Object::Str(s),
+            Lit::Nil => Self::Nil,
+            Lit::Bool(b) => Self::Bool(b),
+            Lit::Number(n) => Self::Number(n),
+            Lit::Str(s) => Self::Str(s),
         }
     }
 }

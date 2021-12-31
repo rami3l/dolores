@@ -37,7 +37,7 @@ pub(crate) struct Interpreter {
 impl Interpreter {
     #[must_use]
     pub(crate) fn new(env: &RcCell<Env>) -> Self {
-        Interpreter {
+        Self {
             env: Arc::clone(env),
             globals: Arc::clone(env),
             locals: HashMap::new(),
@@ -59,6 +59,6 @@ impl Interpreter {
 
 impl Default for Interpreter {
     fn default() -> Self {
-        Interpreter::new(&Env::default().shared())
+        Self::new(&Env::default().shared())
     }
 }

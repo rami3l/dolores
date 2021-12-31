@@ -10,7 +10,7 @@ pub(crate) struct Lexer<'s> {
 
 impl<'s> Lexer<'s> {
     pub(crate) fn new(src: &'s str) -> Self {
-        Lexer {
+        Self {
             inner: TokenType::lexer(src),
         }
     }

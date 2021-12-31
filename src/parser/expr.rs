@@ -103,7 +103,7 @@ impl Display for Expr {
 
 impl Default for Expr {
     fn default() -> Self {
-        Expr::Literal(Lit::Nil)
+        Self::Literal(Lit::Nil)
     }
 }
 

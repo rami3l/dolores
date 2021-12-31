@@ -23,7 +23,7 @@ impl Class {
         superclass: impl Into<Option<Class>>,
         methods: HashMap<String, Object>,
     ) -> Self {
-        Class {
+        Self {
             uid: Uuid::new_v4(),
             name: name.into(),
             superclass: superclass.into().map(Box::new),
@@ -64,7 +64,7 @@ pub(crate) struct Instance {
 
 impl From<Class> for Instance {
     fn from(class: Class) -> Self {
-        Instance {
+        Self {
             uid: Uuid::new_v4(),
             class,
             fields: rc_cell_of(HashMap::default()),

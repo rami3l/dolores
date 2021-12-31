@@ -27,7 +27,7 @@ impl Closure {
         body: impl IntoIterator<Item = Stmt>,
         env: &RcCell<Env>,
     ) -> Self {
-        Closure {
+        Self {
             uid: Uuid::new_v4(),
             name: name.into().map(str::to_owned),
             params: params.into_iter().collect(),
@@ -43,9 +43,9 @@ impl Closure {
         body: impl IntoIterator<Item = Stmt>,
         env: &RcCell<Env>,
     ) -> Self {
-        Closure {
+        Self {
             is_init: true,
-            ..Closure::new(name, params, body, env)
+            ..Self::new(name, params, body, env)
         }
     }
 
@@ -53,7 +53,7 @@ impl Closure {
     pub(crate) fn bind(self, instance: Instance) -> Self {
         let mut env = Env::from_outer(&self.env);
         env.insert_val("this", Object::Instance(instance));
-        Closure {
+        Self {
             env: env.shared(),
             ..self
         }
