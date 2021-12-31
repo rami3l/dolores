@@ -9,13 +9,13 @@ pub(crate) struct Lexer<'s> {
 }
 
 impl<'s> Lexer<'s> {
-    pub fn new(src: &'s str) -> Self {
+    pub(crate) fn new(src: &'s str) -> Self {
         Lexer {
             inner: TokenType::lexer(src),
         }
     }
 
-    pub fn analyze(self) -> impl Iterator<Item = Token> + 's {
+    pub(crate) fn analyze(self) -> impl Iterator<Item = Token> + 's {
         let src = self.inner.source();
         self.inner.spanned().map(|(ty, span)| Token {
             ty,
@@ -26,12 +26,12 @@ impl<'s> Lexer<'s> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct Token {
-    pub ty: TokenType,
-    pub lexeme: String,
+pub(crate) struct Token {
+    pub(crate) ty: TokenType,
+    pub(crate) lexeme: String,
     /// The `(line_num, column_num)` pair of the starting position of this
     /// token, in the text editor standard (index starting from 1).
-    pub pos: (usize, usize),
+    pub(crate) pos: (usize, usize),
 }
 
 impl Display for Token {
@@ -42,7 +42,7 @@ impl Display for Token {
 
 #[derive(Logos, Debug, PartialEq, Eq, Clone, Copy, Hash)]
 #[repr(u16)]
-pub enum TokenType {
+pub(crate) enum TokenType {
     // Single-character tokens.
     #[token("(")]
     LeftParen,

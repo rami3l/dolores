@@ -19,7 +19,7 @@ use crate::{
 const MAX_FUN_ARG_COUNT: usize = 255;
 
 #[derive(Debug, Clone)]
-pub enum Expr {
+pub(crate) enum Expr {
     Assign {
         name: Token,
         val: Box<Expr>,
@@ -108,7 +108,7 @@ impl Default for Expr {
 }
 
 #[derive(Debug, Clone)]
-pub enum Lit {
+pub(crate) enum Lit {
     Nil,
     Bool(bool),
     Number(f64),

@@ -25,7 +25,7 @@ pub(crate) struct Parser {
 }
 
 impl Parser {
-    pub fn new(tokens: impl IntoIterator<Item = Token>) -> Self {
+    pub(crate) fn new(tokens: impl IntoIterator<Item = Token>) -> Self {
         Parser {
             tokens: tokens.into_iter().collect(),
             idx: 0,

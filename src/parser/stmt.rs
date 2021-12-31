@@ -12,7 +12,7 @@ use crate::lexer::{Token, TokenType::*};
 use crate::{bail, error::report, util::disp_slice};
 
 #[derive(Debug, Clone)]
-pub enum Stmt {
+pub(crate) enum Stmt {
     Block(Vec<Stmt>),
     Class {
         name: Token,

@@ -11,11 +11,13 @@
 // TODO: Remove the whitelist below.
 #![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
 
-pub mod cmd;
-pub mod error;
-pub mod interpreter;
-pub mod lexer;
-pub mod parser;
-pub mod resolver;
-pub mod run;
-pub mod util;
+pub(crate) mod cmd;
+pub(crate) mod error;
+pub(crate) mod interpreter;
+pub(crate) mod lexer;
+pub(crate) mod parser;
+pub(crate) mod resolver;
+pub(crate) mod run;
+pub(crate) mod util;
+
+pub use crate::cmd::Dolores;

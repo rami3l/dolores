@@ -4,19 +4,19 @@ use super::Object;
 use crate::util::{rc_cell_of, RcCell};
 
 #[derive(Debug, Default, Clone)]
-pub struct Env {
-    pub dict: HashMap<String, Object>,
-    pub outer: Option<RcCell<Env>>,
+pub(crate) struct Env {
+    pub(crate) dict: HashMap<String, Object>,
+    pub(crate) outer: Option<RcCell<Env>>,
 }
 
 impl Env {
     #[must_use]
-    pub fn new(dict: HashMap<String, Object>) -> Self {
+    pub(crate) fn new(dict: HashMap<String, Object>) -> Self {
         Env { dict, outer: None }
     }
 
     #[must_use]
-    pub fn from_outer(outer: &RcCell<Env>) -> Self {
+    pub(crate) fn from_outer(outer: &RcCell<Env>) -> Self {
         Env {
             dict: HashMap::new(),
             outer: Some(Arc::clone(outer)),
@@ -24,12 +24,12 @@ impl Env {
     }
 
     #[must_use]
-    pub fn outer_nth(this: &RcCell<Env>, n: usize) -> Option<RcCell<Self>> {
+    pub(crate) fn outer_nth(this: &RcCell<Env>, n: usize) -> Option<RcCell<Self>> {
         iter::successors(Some(Arc::clone(this)), |env| env.lock().outer.clone()).nth(n)
     }
 
     #[must_use]
-    pub fn shared(self) -> RcCell<Self> {
+    pub(crate) fn shared(self) -> RcCell<Self> {
         rc_cell_of(self)
     }
 
@@ -45,22 +45,22 @@ impl Env {
     }
 
     #[must_use]
-    pub fn lookup(this: &RcCell<Env>, ident: &str) -> Option<Object> {
+    pub(crate)fn lookup(this: &RcCell<Env>, ident: &str) -> Option<Object> {
         Self::lookup_with_env(this, ident).map(|(_, obj)| obj)
     }
     */
 
     #[must_use]
-    pub fn lookup_dict(this: &RcCell<Env>, ident: &str) -> Option<Object> {
+    pub(crate) fn lookup_dict(this: &RcCell<Env>, ident: &str) -> Option<Object> {
         this.lock().dict.get(ident).cloned()
     }
 
-    pub fn insert_val(&mut self, ident: &str, val: Object) {
+    pub(crate) fn insert_val(&mut self, ident: &str, val: Object) {
         self.dict.insert(ident.into(), val);
     }
 
     /*
-    pub fn set_val(this: &RcCell<Env>, ident: &str, val: Object) {
+    pub(crate)fn set_val(this: &RcCell<Env>, ident: &str, val: Object) {
         Self::lookup_with_env(this, ident)
             .map_or_else(|| Arc::clone(this), |(that, _)| that)
             .lock()

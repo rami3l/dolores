@@ -9,16 +9,16 @@ use super::{Object, RcCell};
 use crate::util::rc_cell_of;
 
 #[derive(Debug, Clone)]
-pub struct Class {
-    pub uid: Uuid,
-    pub name: String,
-    pub superclass: Option<Box<Class>>,
-    pub methods: RcCell<HashMap<String, Object>>,
+pub(crate) struct Class {
+    pub(crate) uid: Uuid,
+    pub(crate) name: String,
+    pub(crate) superclass: Option<Box<Class>>,
+    pub(crate) methods: RcCell<HashMap<String, Object>>,
 }
 
 impl Class {
     #[must_use]
-    pub fn new(
+    pub(crate) fn new(
         name: &str,
         superclass: impl Into<Option<Class>>,
         methods: HashMap<String, Object>,
@@ -32,7 +32,7 @@ impl Class {
     }
 
     #[must_use]
-    pub fn method(&self, name: &str) -> Option<Object> {
+    pub(crate) fn method(&self, name: &str) -> Option<Object> {
         self.methods
             .lock()
             .get(name)
@@ -56,10 +56,10 @@ impl PartialEq for Class {
 impl Eq for Class {}
 
 #[derive(Debug, Clone)]
-pub struct Instance {
-    pub uid: Uuid,
-    pub class: Class,
-    pub fields: RcCell<HashMap<String, Object>>,
+pub(crate) struct Instance {
+    pub(crate) uid: Uuid,
+    pub(crate) class: Class,
+    pub(crate) fields: RcCell<HashMap<String, Object>>,
 }
 
 impl From<Class> for Instance {
@@ -74,7 +74,7 @@ impl From<Class> for Instance {
 
 impl Instance {
     #[must_use]
-    pub fn get(&self, name: &str) -> Option<Object> {
+    pub(crate) fn get(&self, name: &str) -> Option<Object> {
         self.fields.lock().get(name).cloned().or_else(|| {
             self.class.method(name).map(|it| {
                 if let Object::NativeFn(clos) = it {
@@ -87,7 +87,7 @@ impl Instance {
     }
 
     #[allow(clippy::must_use_candidate)]
-    pub fn set(&self, name: &str, to: Object) -> Option<Object> {
+    pub(crate) fn set(&self, name: &str, to: Object) -> Option<Object> {
         self.fields.lock().insert(name.into(), to)
     }
 }

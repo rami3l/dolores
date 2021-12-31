@@ -1,7 +1,6 @@
 use anyhow::Result;
-use clap::Parser;
-use dolores::cmd::Dolores;
+use dolores::Dolores;
 
 fn main() -> Result<()> {
-    Dolores::parse().dispatch()
+    Dolores::launch()
 }

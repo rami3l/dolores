@@ -11,7 +11,7 @@ use std::{collections::HashMap, mem, sync::Arc};
 
 use anyhow::Result;
 
-pub use self::{
+pub(crate) use self::{
     class::{Class, Instance},
     closure::Closure,
     env::Env,
@@ -28,15 +28,15 @@ use crate::{
 /// The interpreter, containing the necessary evaluation context for expressions
 /// and statements.
 #[derive(Debug, Clone)]
-pub struct Interpreter {
+pub(crate) struct Interpreter {
     env: RcCell<Env>,
-    pub globals: RcCell<Env>,
-    pub locals: HashMap<Token, usize>,
+    pub(crate) globals: RcCell<Env>,
+    pub(crate) locals: HashMap<Token, usize>,
 }
 
 impl Interpreter {
     #[must_use]
-    pub fn new(env: &RcCell<Env>) -> Self {
+    pub(crate) fn new(env: &RcCell<Env>) -> Self {
         Interpreter {
             env: Arc::clone(env),
             globals: Arc::clone(env),
@@ -44,14 +44,14 @@ impl Interpreter {
         }
     }
 
-    pub fn resolve_expr(&mut self, expr: Expr) -> Result<()> {
+    pub(crate) fn resolve_expr(&mut self, expr: Expr) -> Result<()> {
         let mut resolver = Resolver::new(mem::take(self));
         resolver.resolve_expr(expr)?;
         *self = resolver.interpreter;
         Ok(())
     }
 
-    pub fn resolve_stmts(&mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<()> {
+    pub(crate) fn resolve_stmts(&mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<()> {
         *self = Resolver::new(mem::take(self)).resolve(stmts)?;
         Ok(())
     }

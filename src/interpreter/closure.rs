@@ -11,17 +11,17 @@ use super::{Env, Instance, Interpreter, Object, RcCell, ReturnMarker};
 use crate::{lexer::Token, parser::Stmt};
 
 #[derive(Debug, Clone)]
-pub struct Closure {
-    pub uid: Uuid,
-    pub name: Option<String>,
-    pub params: Vec<Token>,
-    pub body: Vec<Stmt>,
-    pub env: RcCell<Env>,
+pub(crate) struct Closure {
+    pub(crate) uid: Uuid,
+    pub(crate) name: Option<String>,
+    pub(crate) params: Vec<Token>,
+    pub(crate) body: Vec<Stmt>,
+    pub(crate) env: RcCell<Env>,
     is_init: bool,
 }
 
 impl Closure {
-    pub fn new<'n>(
+    pub(crate) fn new<'n>(
         name: impl Into<Option<&'n str>>,
         params: impl IntoIterator<Item = Token>,
         body: impl IntoIterator<Item = Stmt>,
@@ -37,7 +37,7 @@ impl Closure {
         }
     }
 
-    pub fn new_init<'n>(
+    pub(crate) fn new_init<'n>(
         name: impl Into<Option<&'n str>>,
         params: impl IntoIterator<Item = Token>,
         body: impl IntoIterator<Item = Stmt>,
@@ -50,7 +50,7 @@ impl Closure {
     }
 
     #[must_use]
-    pub fn bind(self, instance: Instance) -> Self {
+    pub(crate) fn bind(self, instance: Instance) -> Self {
         let mut env = Env::from_outer(&self.env);
         env.insert_val("this", Object::Instance(instance));
         Closure {
@@ -59,7 +59,7 @@ impl Closure {
         }
     }
 
-    pub fn apply(self, interpreter: &mut Interpreter, args: Vec<Object>) -> Result<Object> {
+    pub(crate) fn apply(self, interpreter: &mut Interpreter, args: Vec<Object>) -> Result<Object> {
         // Temporarily switch into the scope environment...
         let old_env = Arc::clone(&interpreter.env);
         interpreter.env = Env::from_outer(&self.env).shared();

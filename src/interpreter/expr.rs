@@ -14,7 +14,7 @@ use crate::{
 
 impl Interpreter {
     #[allow(clippy::too_many_lines)]
-    pub fn eval(&mut self, expr: Expr) -> Result<Object> {
+    pub(crate) fn eval(&mut self, expr: Expr) -> Result<Object> {
         let env = &Arc::clone(&self.env);
         match expr {
             Expr::Assign { name, val } => {

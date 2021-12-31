@@ -6,7 +6,7 @@ use super::{BreakMarker, Class, Closure, ContinueMarker, Env, Interpreter, Objec
 use crate::{lexer::TokenType as Tk, parser::Stmt, runtime_bail};
 
 impl Interpreter {
-    pub fn exec(&mut self, stmt: Stmt) -> Result<()> {
+    pub(crate) fn exec(&mut self, stmt: Stmt) -> Result<()> {
         let env = &Arc::clone(&self.env);
         match stmt {
             Stmt::Block(stmts) => {
@@ -105,7 +105,7 @@ impl Interpreter {
         Ok(())
     }
 
-    pub fn exec_stmts(&mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<()> {
+    pub(crate) fn exec_stmts(&mut self, stmts: impl IntoIterator<Item = Stmt>) -> Result<()> {
         stmts.into_iter().try_for_each(|it| self.exec(it))
     }
 }

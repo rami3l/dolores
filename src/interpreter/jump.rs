@@ -4,12 +4,12 @@ use super::Object;
 
 #[derive(Debug, Error, Display, Clone, Copy)]
 #[display(fmt = "Internal Error: found `break` out of loop context")]
-pub struct BreakMarker;
+pub(crate) struct BreakMarker;
 
 #[derive(Debug, Error, Display, Clone, Copy)]
 #[display(fmt = "Internal Error: found `continue` out of loop context")]
-pub struct ContinueMarker;
+pub(crate) struct ContinueMarker;
 
 #[derive(Debug, Error, Display, From)]
 #[display(fmt = "Internal Error: found `return` out of function context")]
-pub struct ReturnMarker(#[error(not(source))] pub Object);
+pub(crate) struct ReturnMarker(#[error(not(source))] pub(crate) Object);

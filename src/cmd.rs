@@ -14,11 +14,15 @@ use crate::run::{run_file, run_prompt};
 pub struct Dolores {
     /// Package name or (sometimes) regex.
     #[clap(name = "FILE")]
-    pub file: Option<String>,
+    pub(crate) file: Option<String>,
 }
 
 impl Dolores {
-    pub fn dispatch(self) -> Result<()> {
+    pub fn launch() -> Result<()> {
+        Self::parse().dispatch()
+    }
+
+    pub(crate) fn dispatch(self) -> Result<()> {
         let file = self.file;
         file.map_or_else(run_prompt, run_file)
     }

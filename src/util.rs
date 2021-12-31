@@ -3,9 +3,9 @@ use std::{fmt::Display, sync::Arc};
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-pub type RcCell<T> = Arc<Mutex<T>>;
+pub(crate) type RcCell<T> = Arc<Mutex<T>>;
 
-pub fn rc_cell_of<T>(t: T) -> RcCell<T> {
+pub(crate) fn rc_cell_of<T>(t: T) -> RcCell<T> {
     Arc::new(Mutex::new(t))
 }
 

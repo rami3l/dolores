@@ -8,8 +8,8 @@ use anyhow::Result;
 use crate::{interpreter::Interpreter, lexer::Token, parser::Stmt};
 
 #[derive(Debug, Clone, Default)]
-pub struct Resolver {
-    pub interpreter: Interpreter,
+pub(crate) struct Resolver {
+    pub(crate) interpreter: Interpreter,
     scopes: Vec<Scope>,
     jump_ctx: JumpContext,
     class_ctx: ClassContext,
@@ -17,7 +17,7 @@ pub struct Resolver {
 
 // See: <https://www.craftinginterpreters.com/resolving-and-binding.html#resolving-variable-declarations>
 #[derive(Debug, Clone, Copy)]
-pub enum ResolutionState {
+pub(crate) enum ResolutionState {
     /// The variable is added to the innermost scope, so that it shadows any
     /// outer one, and so that we know its existence.
     Declared,
@@ -25,32 +25,32 @@ pub enum ResolutionState {
     Defined,
 }
 
-pub type Scope = HashMap<String, ResolutionState>;
+pub(crate) type Scope = HashMap<String, ResolutionState>;
 
 #[derive(Debug, Clone, Copy, Default)]
-pub struct JumpContext {
-    pub fun_ty: Option<FunctionContextType>,
-    pub in_loop: bool,
+pub(crate) struct JumpContext {
+    pub(crate) fun_ty: Option<FunctionContextType>,
+    pub(crate) in_loop: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FunctionContextType {
+pub(crate) enum FunctionContextType {
     Function,
     Initializer,
     Method,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ClassContextType {
+pub(crate) enum ClassContextType {
     Class,
     Subclass,
 }
 
-pub type ClassContext = Option<ClassContextType>;
+pub(crate) type ClassContext = Option<ClassContextType>;
 
 impl Resolver {
     #[must_use]
-    pub fn new(interpreter: Interpreter) -> Self {
+    pub(crate) fn new(interpreter: Interpreter) -> Self {
         Resolver {
             interpreter,
             ..Resolver::default()

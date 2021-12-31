@@ -6,7 +6,7 @@ use super::{Class, Closure, Instance};
 use crate::parser::Lit;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Object {
+pub(crate) enum Object {
     Nil,
     Bool(bool),
     Number(f64),
@@ -61,7 +61,7 @@ impl From<&Object> for bool {
 
 impl Object {
     #[must_use]
-    pub fn to_bool(&self) -> bool {
+    pub(crate) fn to_bool(&self) -> bool {
         self.into()
     }
 }
