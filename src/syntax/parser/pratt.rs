@@ -1,11 +1,16 @@
 #![allow(clippy::module_name_repetitions)]
 
 use std::{
+    default,
     fmt::{self, Debug, Display},
     iter::Peekable,
 };
 
+use num_enum::{FromPrimitive, IntoPrimitive};
 use thiserror::Error;
+
+use super::Parser;
+use crate::syntax::{lexer::SyntaxKind, LoxPrec};
 
 /*
  * Terminology:
@@ -63,6 +68,12 @@ impl Prec {
     }
 }
 
+impl From<LoxPrec> for Prec {
+    fn from(lox_prec: LoxPrec) -> Self {
+        Self::new_10x(lox_prec.into())
+    }
+}
+
 #[derive(Copy, Clone)]
 pub enum Affix {
     Nilfix,
@@ -71,45 +82,59 @@ pub enum Affix {
     Postfix(Prec),
 }
 
-#[derive(Error, Debug)]
-pub enum PrattError<I, E> {
-    UserError(E),
-    EmptyInput,
-    UnexpectedNilfix(I),
-    UnexpectedPrefix(I),
-    UnexpectedInfix(I),
-    UnexpectedPostfix(I),
-}
-
-impl<I: Debug, E: Display> Display for PrattError<I, E> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            PrattError::UserError(e) => write!(f, "{}", e),
-            PrattError::EmptyInput => write!(f, "Pratt parser was called with empty input."),
-            PrattError::UnexpectedNilfix(t) => {
-                write!(f, "Expected Infix or Postfix, found Nilfix {:?}", t)
-            }
-            PrattError::UnexpectedPrefix(t) => {
-                write!(f, "Expected Infix or Postfix, found Prefix {:?}", t)
-            }
-            PrattError::UnexpectedInfix(t) => {
-                write!(f, "Expected Nilfix or Prefix, found Infix {:?}", t)
-            }
-            PrattError::UnexpectedPostfix(t) => {
-                write!(f, "Expected Nilfix or Prefix, found Postfix {:?}", t)
-            }
-        }
-    }
-}
-
-pub trait PrattParser<Inputs: Iterator<Item = Self::Input>> {
-    type Error;
-    type Input;
-    type Output: Sized;
-
+// Implementation fo the Pratt parsing technique.
+impl<'s> Parser<'s> {
     /// The affix info of an operator, possibly with its precedence and
     /// association.
-    fn op_info(&mut self, input: &Self::Input) -> Result<Affix, Self::Error>;
+    fn affix(kind: SyntaxKind) -> Affix {
+        use Affix::*;
+        use SyntaxKind::*;
+        match kind {
+            Minus
+            Equal => todo!(),
+            LeftParen => todo!(),
+            RightParen => todo!(),
+            LeftBrace => todo!(),
+            RightBrace => todo!(),
+            Comma => todo!(),
+            Dot => todo!(),
+            Minus => todo!(),
+            Plus => todo!(),
+            Semicolon => todo!(),
+            Slash => todo!(),
+            Star => todo!(),
+            Bang => todo!(),
+            BangEqual => todo!(),
+            EqualEqual => todo!(),
+            Greater => todo!(),
+            GreaterEqual => todo!(),
+            Less => todo!(),
+            LessEqual => todo!(),
+            Identifier => todo!(),
+            Str => todo!(),
+            Number => todo!(),
+            And => todo!(),
+            Break => todo!(),
+            Class => todo!(),
+            Continue => todo!(),
+            Else => todo!(),
+            False => todo!(),
+            Fun => todo!(),
+            For => todo!(),
+            If => todo!(),
+            Nil => todo!(),
+            Or => todo!(),
+            Print => todo!(),
+            Return => todo!(),
+            Super => todo!(),
+            This => todo!(),
+            True => todo!(),
+            Var => todo!(),
+            While => todo!(),
+            SingleLineComment => todo!(),
+            Error => todo!(),
+        }
+    }
 
     /// The primary expression handler.
     fn primary(&mut self, input: Self::Input) -> Result<Self::Output, Self::Error>;
@@ -143,11 +168,11 @@ pub trait PrattParser<Inputs: Iterator<Item = Self::Input>> {
         right_pow: Prec,
     ) -> Result<Self::Output, PrattError<Self::Input, Self::Error>> {
         if let Some(head) = tail.next() {
-            let info = self.op_info(&head).map_err(PrattError::UserError)?;
+            let info = self.affix(&head).map_err(PrattError::UserError)?;
             let mut next_pow = self.next_pow(info);
             let mut node = self.null_deno(head, tail, info);
             while let Some(head) = tail.peek() {
-                let info = self.op_info(head).map_err(PrattError::UserError)?;
+                let info = self.affix(head).map_err(PrattError::UserError)?;
                 let left_pow = self.left_pow(info);
                 // We continue to consume new tokens when:
                 // - The current subexpression has a lower precedence (`right_pow`) than that of

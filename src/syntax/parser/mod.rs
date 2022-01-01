@@ -6,7 +6,7 @@ use std::{fmt::Display, iter::Peekable};
 
 use anyhow::{Context, Result};
 use itertools::Itertools;
-use rowan::{Checkpoint, GreenNodeBuilder, Language};
+use rowan::{Checkpoint, GreenNode, GreenNodeBuilder, Language};
 
 /* pub(crate) use self::{
     expr::{Expr, Lit},
@@ -25,6 +25,9 @@ use crate::{
 pub(crate) struct Parser<'s> {
     lexer: Peekable<Lexer<'s>>,
     builder: GreenNodeBuilder<'static>,
+    // Ideally we should store a list of errors here, but I'll keep just the first one for
+    // simplicity.
+    // errors: Vec<String>,
 }
 
 // Pseudo-inheritance...
@@ -43,8 +46,14 @@ impl<'s> Parser<'s> {
     }
 }
 
+// Util methods...
 impl<'s> Parser<'s> {
     fn peek(&mut self) -> Option<SyntaxKind> {
         self.lexer.peek().map(|(kind, _)| *kind)
     }
+}
+
+pub(crate) struct Parse {
+    green_node: GreenNode,
+    error: Option<anyhow::Error>,
 }
