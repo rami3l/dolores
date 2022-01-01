@@ -25,7 +25,7 @@ pub(crate) fn run_prompt() -> Result<()> {
 }
 
 pub(crate) fn run_str(src: &str, interpreter: &mut Interpreter, repl_mode: bool) -> Result<String> {
-    let tokens = Lexer::new(src).analyze().collect_vec();
+    let tokens = Lexer::new(src).collect_vec();
     match Parser::new(tokens.clone()).parse() {
         Ok(stmts) => {
             interpreter.resolve_stmts(stmts.clone())?;

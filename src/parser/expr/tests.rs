@@ -7,7 +7,7 @@ use super::*;
 use crate::lexer::Lexer;
 
 fn assert_expr(src: &str, expected: &str) {
-    let tokens = Lexer::new(src).analyze();
+    let tokens = Lexer::new(src);
     let got = Parser::new(tokens)
         .expr()
         .map(|i| format!("{}", i))
@@ -36,7 +36,7 @@ fn paren_mismatch() {
 
 #[test]
 fn paren_mismatch_sync() {
-    let tokens = Lexer::new("-(-1+2 / 3- 4 *5+ (6/ 7); 8 +9").analyze();
+    let tokens = Lexer::new("-(-1+2 / 3- 4 *5+ (6/ 7); 8 +9");
     let mut parser = Parser::new(tokens);
     assert!(dbg!(parser.expr()).is_err());
     let got = parser.expr().unwrap();
@@ -52,7 +52,7 @@ fn mul_used_as_unary() {
 
 #[test]
 fn mul_used_as_unary_sync() {
-    let tokens = Lexer::new("* 1-2 == 3").analyze();
+    let tokens = Lexer::new("* 1-2 == 3");
     let mut parser = Parser::new(tokens);
     // >= (1+2)
     assert!(dbg!(parser.expr()).is_err());
@@ -79,7 +79,7 @@ fn inequality_used_as_unary() {
 #[test]
 #[should_panic(expected = "found binary operator `==`")]
 fn inequality_used_as_unary_sync() {
-    let tokens = Lexer::new(">= 1+2 == 3").analyze();
+    let tokens = Lexer::new(">= 1+2 == 3");
     let mut parser = Parser::new(tokens);
     // >= (1+2)
     assert!(dbg!(parser.expr()).is_err());

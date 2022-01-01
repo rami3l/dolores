@@ -14,13 +14,17 @@ impl<'s> Lexer<'s> {
             inner: TokenType::lexer(src),
         }
     }
+}
 
-    pub(crate) fn analyze(self) -> impl Iterator<Item = Token> + 's {
+impl<'s> Iterator for Lexer<'s> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
         let src = self.inner.source();
-        self.inner.spanned().map(|(ty, span)| Token {
+        self.inner.next().map(|ty| Token {
             ty,
-            pos: index_to_pos(src, span.start),
-            lexeme: src[span].into(),
+            pos: index_to_pos(src, self.inner.span().start),
+            lexeme: self.inner.slice().into(),
         })
     }
 }
@@ -188,10 +192,7 @@ mod tests {
     use super::*;
 
     fn lex(src: &str) -> Vec<(TokenType, String)> {
-        Lexer::new(src)
-            .analyze()
-            .map(|t| (t.ty, t.lexeme))
-            .collect()
+        Lexer::new(src).map(|t| (t.ty, t.lexeme)).collect()
     }
 
     macro_rules! assert_lex {

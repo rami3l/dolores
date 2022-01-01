@@ -8,7 +8,7 @@ use super::*;
 use crate::lexer::Lexer;
 
 fn assert_stmts(src: &str, expected: &[&str]) {
-    let tokens = Lexer::new(src).analyze();
+    let tokens = Lexer::new(src);
     let got = Parser::new(tokens)
         .parse()
         .unwrap()
