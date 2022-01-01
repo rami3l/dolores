@@ -4,19 +4,19 @@ use logos::Logos;
 use num_enum::{FromPrimitive, IntoPrimitive};
 
 pub(crate) struct Lexer<'s> {
-    inner: logos::Lexer<'s, SyntaxKind>,
+    inner: logos::Lexer<'s, TokenType>,
 }
 
 impl<'s> Lexer<'s> {
     pub(crate) fn new(src: &'s str) -> Self {
         Self {
-            inner: SyntaxKind::lexer(src),
+            inner: TokenType::lexer(src),
         }
     }
 }
 
 impl<'s> Iterator for Lexer<'s> {
-    type Item = (SyntaxKind, &'s str);
+    type Item = (TokenType, &'s str);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|tk| (tk, self.inner.slice()))
@@ -25,7 +25,7 @@ impl<'s> Iterator for Lexer<'s> {
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub(crate) struct Token {
-    pub(crate) ty: SyntaxKind,
+    pub(crate) ty: TokenType,
     pub(crate) lexeme: String,
     /// The `(line_num, column_num)` pair of the starting position of this
     /// token, in the text editor standard (index starting from 1).
@@ -42,7 +42,7 @@ impl Display for Token {
     Logos, Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash, FromPrimitive, IntoPrimitive,
 )]
 #[repr(u16)]
-pub(crate) enum SyntaxKind {
+pub(crate) enum TokenType {
     // Single-character tokens.
     #[token("(")]
     LeftParen,
@@ -188,7 +188,7 @@ mod tests {
 
     use super::*;
 
-    fn lex(src: &str) -> Vec<(SyntaxKind, String)> {
+    fn lex(src: &str) -> Vec<(TokenType, String)> {
         Lexer::new(src)
             .map(|(kind, lexeme)| (kind, lexeme.into()))
             .collect()

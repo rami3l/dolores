@@ -17,8 +17,8 @@ use super::{lexer::Lexer, LoxLanguage};
 use crate::{
     error::report,
     lexer::{
-        SyntaxKind::{self, *},
         Token,
+        TokenType::{self, *},
     },
 };
 
@@ -32,12 +32,12 @@ pub(crate) struct Parser<'s> {
 
 // Pseudo-inheritance...
 impl<'s> Parser<'s> {
-    fn start_node_at(&mut self, checkpoint: Checkpoint, kind: SyntaxKind) {
+    fn start_node_at(&mut self, checkpoint: Checkpoint, kind: TokenType) {
         self.builder
             .start_node_at(checkpoint, LoxLanguage::kind_to_raw(kind));
     }
 
-    fn token(&mut self, kind: SyntaxKind, text: &str) {
+    fn token(&mut self, kind: TokenType, text: &str) {
         self.builder.token(LoxLanguage::kind_to_raw(kind), text);
     }
 
@@ -48,7 +48,7 @@ impl<'s> Parser<'s> {
 
 // Util methods...
 impl<'s> Parser<'s> {
-    fn peek(&mut self) -> Option<SyntaxKind> {
+    fn peek(&mut self) -> Option<TokenType> {
         self.lexer.peek().map(|(kind, _)| *kind)
     }
 }

@@ -7,38 +7,21 @@ use std::{
 };
 
 use num_enum::{FromPrimitive, IntoPrimitive};
+use tap::Conv;
 use thiserror::Error;
 
 use super::Parser;
-use crate::syntax::{lexer::SyntaxKind, LoxPrec};
-
-/*
- * Terminology:
- * token precedence	= left binding power, lbp
- * subexpression precedence	= right binding power, rbp
- * head handler function = null denotation, nud
- * tail handler function = left denotation, led
- * src: <https://abarker.github.io/typped/pratt_parsing_intro.html>
- *
- *         <lbp>  <rbp>  <nbp> <kind>
- * Nilfix:  MIN |  MIN |  MAX | nud
- * Prefix:  MIN |   bp |  MAX | nud
- * Postfix:  bp |  MIN |  MAX | led
- * InfixL:   bp |   bp | bp+1 | led
- * InfixR:   bp | bp-1 | bp+1 | led
- * InfixN:   bp |*bp+1*|   bp | led
- * src: <https://github.com/segeljakt/pratt/blob/master/src/lib.rs>
- */
+use crate::syntax::{lexer::TokenType, LoxPrec};
 
 /// Operator associativity.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Assoc {
+    /// No associativity, i.e. this is not an operator, or it cannot be chained.
+    None,
     /// Left associativity.
     L,
     /// Right associativity.
     R,
-    /// No associativity, i.e. this operator cannot be chained.
-    NA,
 }
 
 /// Operator precedence.
@@ -50,8 +33,8 @@ pub enum Assoc {
 pub struct Prec(pub u32);
 
 impl Prec {
-    pub fn new_10x(prec: u32) -> Self {
-        Self(10 * prec)
+    pub fn new_10x(prec: impl Into<u32>) -> Self {
+        Self(10 * prec.into())
     }
 
     const MIN: Prec = Prec(u32::MIN);
@@ -70,9 +53,41 @@ impl Prec {
 
 impl From<LoxPrec> for Prec {
     fn from(lox_prec: LoxPrec) -> Self {
-        Self::new_10x(lox_prec.into())
+        Self::new_10x(lox_prec.conv::<u8>())
     }
 }
+
+/// The [`Parselet`] is a interface that brings the token types ([`SyntaxKind`])
+/// and their parsing strategies together.
+///
+/// # Note
+/// - The "Null Denotation" is used to parse a nilfix or prefix expression
+/// - The "Left Denotation" is used to parse an infix or postfix expression
+pub(crate) trait Parselet {
+    const ASSOC: Assoc = Assoc::None;
+    const PREC: Prec = Prec::MIN;
+
+    fn null_deno(parser: &mut Parser) {}
+}
+
+/*
+/*
+ * Terminology:
+ * token precedence	= left binding power, lbp
+ * subexpression precedence	= right binding power, rbp
+ * head handler function = null denotation, nud
+ * tail handler function = left denotation, led
+ * src: <https://abarker.github.io/typped/pratt_parsing_intro.html>
+ *
+ *         <lbp>  <rbp>  <nbp> <kind>
+ * Nilfix:  MIN |  MIN |  MAX | nud
+ * Prefix:  MIN |   bp |  MAX | nud
+ * Postfix:  bp |  MIN |  MAX | led
+ * InfixL:   bp |   bp | bp+1 | led
+ * InfixR:   bp | bp-1 | bp+1 | led
+ * InfixN:   bp |*bp+1*|   bp | led
+ * src: <https://github.com/segeljakt/pratt/blob/master/src/lib.rs>
+ */
 
 #[derive(Copy, Clone)]
 pub enum Affix {
@@ -194,7 +209,7 @@ impl<'s> Parser<'s> {
         }
     }
 
-    /// Null denotation
+    /// Null denotation, the handling rule for prefix expressions.
     fn null_deno(
         &mut self,
         head: Self::Input,
@@ -212,7 +227,7 @@ impl<'s> Parser<'s> {
         }
     }
 
-    /// Left denotation
+    /// Left denotation, the handling rule for infix or postfix expressions.
     fn left_deno(
         &mut self,
         head: Self::Input,
@@ -258,3 +273,4 @@ impl<'s> Parser<'s> {
         }
     }
 }
+*/
