@@ -1,7 +1,7 @@
 pub(crate) mod expr;
 pub(crate) mod stmt;
 
-use std::fmt::Display;
+use std::{fmt::Display, iter::Peekable};
 
 use anyhow::{Context, Result};
 use itertools::Itertools;
@@ -10,6 +10,7 @@ pub(crate) use self::{
     expr::{Expr, Lit},
     stmt::Stmt,
 };
+use crate::lexer::Lexer;
 #[allow(clippy::enum_glob_use)]
 use crate::{
     error::report,
@@ -19,31 +20,32 @@ use crate::{
     },
 };
 
-pub(crate) struct Parser {
-    tokens: Vec<Token>,
-    idx: usize,
+pub(crate) struct Parser<'s> {
+    tokens: Peekable<Lexer<'s>>,
+    prev: Option<Token>,
 }
 
-impl Parser {
-    pub(crate) fn new(tokens: impl IntoIterator<Item = Token>) -> Self {
+impl<'s> Parser<'s> {
+    pub(crate) fn new(tokens: Lexer<'s>) -> Self {
         Self {
-            tokens: tokens.into_iter().collect(),
-            idx: 0,
+            tokens: tokens.peekable(),
+            prev: None,
         }
     }
 
-    fn peek(&self) -> Option<Token> {
-        self.tokens.get(self.idx).cloned()
+    fn peek(&mut self) -> Option<Token> {
+        self.tokens.peek().cloned()
     }
 
     fn advance(&mut self) -> Option<Token> {
-        let res = self.peek()?;
-        self.idx += 1;
-        Some(res)
+        let new_prev = self.peek()?;
+        self.prev.replace(new_prev);
+        self.tokens.next();
+        self.prev.clone()
     }
 
     fn previous(&self) -> Option<Token> {
-        self.tokens.get(self.idx - 1).cloned()
+        self.prev.clone()
     }
 
     fn check(&mut self, ty: TokenType) -> Option<Token> {

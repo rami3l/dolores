@@ -127,7 +127,7 @@ impl Display for Lit {
 }
 
 // ** Recursive Descent for Expr **
-impl Parser {
+impl Parser<'_> {
     pub(crate) fn expr(&mut self) -> Result<Expr> {
         self.assignment_expr()
     }

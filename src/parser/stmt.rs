@@ -100,7 +100,7 @@ impl Display for Stmt {
 }
 
 // ** Recursive Descent for Stmt and Decl **
-impl Parser {
+impl Parser<'_> {
     pub(crate) fn decl(&mut self) -> Result<Stmt> {
         match self.test(&[Class, Fun, Var]) {
             Some(t) if t.ty == Class => self.class_decl(),
