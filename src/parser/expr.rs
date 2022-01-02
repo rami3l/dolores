@@ -337,13 +337,13 @@ impl Parser<'_> {
             _ = False => Expr::Literal(Lit::Bool(false)),
             _ = True => Expr::Literal(Lit::Bool(true)),
             _ = Nil => Expr::Literal(Lit::Nil),
-            s = Str => Expr::Literal(Lit::Str({
+            s = Str => Expr::Literal(Lit::Str(
                 s.lexeme
                     .strip_prefix('"')
                     .and_then(|s| s.strip_suffix('"'))
                     .unwrap()
                     .into()
-            })),
+            )),
             n = Number => {
                 let lexeme = &n.lexeme;
                 let val = lexeme.parse();
