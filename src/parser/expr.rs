@@ -160,6 +160,7 @@ impl Parser<'_> {
     fn logic_or_expr(&mut self) -> Result<Expr> {
         let mut res = self.logic_and_expr()?;
         while let Some(op) = self.test(&[Or]) {
+            let op = op.clone();
             let lhs = Box::new(res);
             let rhs = Box::new(self.logic_and_expr()?);
             res = Expr::Logical { lhs, op, rhs }
@@ -171,6 +172,7 @@ impl Parser<'_> {
     fn logic_and_expr(&mut self) -> Result<Expr> {
         let mut res = self.equality_expr()?;
         while let Some(op) = self.test(&[And]) {
+            let op = op.clone();
             let lhs = Box::new(res);
             let rhs = Box::new(self.equality_expr()?);
             res = Expr::Logical { lhs, op, rhs }
@@ -185,6 +187,7 @@ impl Parser<'_> {
     {
         let mut res = descend_parse(self)?;
         while let Some(op) = self.test(tys) {
+            let op = op.clone();
             let lhs = Box::new(res);
             let rhs = Box::new(descend_parse(self)?);
             res = Expr::Binary { lhs, op, rhs }
@@ -198,13 +201,14 @@ impl Parser<'_> {
 
     fn comparison_expr(&mut self) -> Result<Expr> {
         if let Some(op) = self.test(&[BangEqual, EqualEqual]) {
+            let (pos, lexeme) = (op.pos, op.lexeme.clone());
             // Consume the ill-formed RHS.
             let _rhs = self.comparison_expr()?;
             bail!(
-                op.pos,
+                pos,
                 "while parsing an Comparison expression",
                 "found binary operator `{}` with no LHS",
-                op.lexeme,
+                lexeme,
             );
         }
         self.recursive_descent_binary(&[Greater, GreaterEqual, Less, LessEqual], Self::term_expr)
@@ -212,13 +216,14 @@ impl Parser<'_> {
 
     fn term_expr(&mut self) -> Result<Expr> {
         if let Some(op) = self.test(&[Greater, GreaterEqual, Less, LessEqual]) {
+            let (pos, lexeme) = (op.pos, op.lexeme.clone());
             // Consume the ill-formed RHS.
             let _rhs = self.term_expr()?;
             bail!(
-                op.pos,
+                pos,
                 "while parsing an Term expression",
                 "found binary operator `{}` with no LHS",
-                op.lexeme,
+                lexeme,
             );
         }
         self.recursive_descent_binary(&[Plus, Minus], Self::factor_expr)
@@ -227,13 +232,14 @@ impl Parser<'_> {
     fn factor_expr(&mut self) -> Result<Expr> {
         // `Minus` is special: no LHS is completely fine.
         if let Some(op) = self.test(&[Plus]) {
+            let (pos, lexeme) = (op.pos, op.lexeme.clone());
             // Consume the ill-formed RHS.
             let _rhs = self.factor_expr()?;
             bail!(
-                op.pos,
+                pos,
                 "while parsing an Factor expression",
                 "found binary operator `{}` with no LHS",
-                op.lexeme,
+                lexeme,
             );
         }
         self.recursive_descent_binary(&[Slash, Star], Self::unary_expr)
@@ -241,16 +247,18 @@ impl Parser<'_> {
 
     fn unary_expr(&mut self) -> Result<Expr> {
         if let Some(op) = self.test(&[Slash, Star]) {
+            let (pos, lexeme) = (op.pos, op.lexeme.clone());
             // Consume the ill-formed RHS.
             let _rhs = self.unary_expr()?;
             bail!(
-                op.pos,
+                pos,
                 "while parsing an Unary expression",
                 "found binary operator `{}` with no LHS",
-                op.lexeme,
+                lexeme,
             );
         }
         if let Some(op) = self.test(&[Bang, Minus]) {
+            let op = op.clone();
             let rhs = Box::new(self.unary_expr()?);
             return Ok(Expr::Unary { op, rhs });
         }
@@ -265,7 +273,7 @@ impl Parser<'_> {
                 res = Expr::Call {
                     callee: Box::new(res),
                     args,
-                    end: self.previous().unwrap(),
+                    end: self.previous().unwrap().clone(),
                 };
             } else if self.test(&[Dot]).is_some() {
                 let name = self.consume(
@@ -344,8 +352,8 @@ impl Parser<'_> {
                 }
                 Expr::Literal(Lit::Number(val.unwrap()))
             },
-            t = This => Expr::This(t),
-            i = Identifier => Expr::Variable(i),
+            t = This => Expr::This(t.clone()),
+            i = Identifier => Expr::Variable(i.clone()),
             _ = Fun => {
                 let ctx = "while parsing a Lambda expression";
                 self.consume(&[LeftParen], ctx, "expected `(` to begin the parameter list")?;
@@ -364,14 +372,16 @@ impl Parser<'_> {
                 Expr::Lambda { params, body }
             },
             lp = LeftParen => {
+                let pos = lp.pos;
                 let inner = self.expr()?;
                 if self.test(&[RightParen]).is_none() {
                     self.sync();
-                    bail!(lp.pos, "while parsing a parenthesized Group", "`)` expected");
+                    bail!(pos, "while parsing a parenthesized Group", "`)` expected");
                 }
                 Expr::Grouping(Box::new(inner))
             },
-            kw = Super => {
+            sup = Super => {
+                let kw = sup.clone();
                 let ctx = "while parsing a superclass method";
                 self.consume(&[Dot], ctx, "expected `.` after `super`")?;
                 let method = self.consume(&[Identifier], ctx, "expected superclass method name after `.`")?;

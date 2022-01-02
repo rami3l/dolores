@@ -162,7 +162,11 @@ impl Parser<'_> {
     fn var_decl(&mut self) -> Result<Stmt> {
         let ctx = "while parsing a Var declaration";
         let name = self.consume(&[Identifier], ctx, "expected variable name")?;
-        let init = self.test(&[Equal]).map(|_| self.expr()).transpose()?;
+        let init = if self.test(&[Equal]).is_some() {
+            Some(self.expr()?)
+        } else {
+            None
+        };
         self.consume(&[Semicolon], ctx, "expected `;` after a value")?;
         Ok(Stmt::Var { name, init })
     }
@@ -182,7 +186,7 @@ impl Parser<'_> {
     }
 
     fn jump_stmt(&mut self) -> Result<Stmt> {
-        let kw = self.previous().unwrap();
+        let kw = self.previous().unwrap().clone();
         self.consume(
             &[Semicolon],
             "while parsing an Jump statement",
@@ -192,7 +196,7 @@ impl Parser<'_> {
     }
 
     fn return_stmt(&mut self) -> Result<Stmt> {
-        let kw = self.previous().unwrap();
+        let kw = self.previous().unwrap().clone();
         let val = if self.test(&[Semicolon]).is_none() {
             let cond = self.expr()?;
             self.consume(
@@ -217,10 +221,11 @@ impl Parser<'_> {
                 "nothing in the Then branch",
             )
         })?);
-        let else_stmt = self
-            .test(&[Else])
-            .map(|_| anyhow::Ok(Box::new(self.stmt()?)))
-            .transpose()?;
+        let else_stmt = if self.test(&[Else]).is_some() {
+            Some(Box::new(self.stmt()?))
+        } else {
+            None
+        };
         Ok(Stmt::If {
             cond,
             then_stmt,
@@ -322,9 +327,11 @@ impl Parser<'_> {
     pub(crate) fn block_stmt(&mut self) -> Result<Stmt> {
         // When parsing statements here, we need an 1-token lookahead.
         let stmts = std::iter::from_fn(|| {
-            self.peek()
-                .filter(|t| t.ty != RightBrace)
-                .map(|_| self.decl())
+            if self.peek().filter(|t| t.ty != RightBrace).is_some() {
+                Some(self.decl())
+            } else {
+                None
+            }
         })
         .try_collect()?;
         self.consume(

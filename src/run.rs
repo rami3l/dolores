@@ -1,7 +1,6 @@
 use std::path::Path;
 
 use anyhow::Result;
-use itertools::Itertools;
 use rustyline::{error::ReadlineError, Editor};
 
 use crate::{interpreter::Interpreter, lexer::Lexer, parser::Parser};
