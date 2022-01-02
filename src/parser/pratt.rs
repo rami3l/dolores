@@ -88,12 +88,12 @@ static PARSELETS: Lazy<HashMap<TokenType, Parselet>> = Lazy::new(|| {
     use LoxPrec as P;
     use TokenType::*;
     rules! {
+        (LeftParen, Parser::grouping, Parser::call, P::Call),
         (RightParen, None, None, P::None),
         (LeftBrace, None, None, P::None),
         (RightBrace, None, None, P::None),
         (Comma, None, None, P::None),
         (Dot, None, Parser::dot, P::Call),
-        (Dot, None, None, P::Call),
         (Minus, Parser::unary, Parser::binary, P::Term),
         (Plus, None, Parser::binary, P::Term),
         (Semicolon, None, None, P::None),
@@ -133,6 +133,17 @@ static PARSELETS: Lazy<HashMap<TokenType, Parselet>> = Lazy::new(|| {
 impl<'s> Parser<'s> {
     fn pratt(&'s mut self, min_prec: u8) -> Result<Expr> {
         let ctx = "while executing the Pratt parser";
+
+        macro_rules! unexpected {
+            ($tk:expr) => {{
+                bail!(
+                    $tk.pos,
+                    &format!("while parsing `{}`", &$tk.lexeme),
+                    "unexpected token",
+                )
+            }};
+        }
+
         let fst = self.advance().cloned().ok_or_else(|| {
             anyhow!(
                 "Internal Error {} with `min_prec={}`: unexpected EoF",
@@ -140,19 +151,11 @@ impl<'s> Parser<'s> {
                 min_prec
             )
         })?;
-        let prefix_rule = if let Some(parselet) = PARSELETS.get(&fst.ty) {
-            parselet.prefix
-        } else {
-            None
-        };
+        let prefix_rule = PARSELETS.get(&fst.ty).and_then(|it| it.prefix);
         if let Some(prefix_rule) = prefix_rule {
             prefix_rule(self)?;
         } else {
-            bail!(
-                fst.pos,
-                &format!("while parsing `{}`", &fst.lexeme),
-                "unexpected token",
-            );
+            unexpected!(fst);
         }
         todo!()
     }
