@@ -193,7 +193,7 @@ fn for_stmt_jump() {
 #[test]
 fn for_stmt_return_in_dup_fun() {
     assert_eval(&[(
-        "for(var i = 0; i < 10; i = i + 1) { fun g() { return; } }",
+        "for (var i = 0; i < 10; i = i + 1) { fun g() { return; } }",
         "",
     )]);
 }
@@ -208,7 +208,7 @@ fn bare_jump_break() {
 #[should_panic(expected = "found `break` out of loop context")]
 fn bare_jump_break_in_fun() {
     assert_eval(&[(
-        "for(var i = 0; i < 10; i = i + 1) { fun g() { break; } }",
+        "for (var i = 0; i < 10; i = i + 1) { fun g() { break; } }",
         "",
     )]);
 }
@@ -223,7 +223,7 @@ fn bare_jump_continue() {
 #[should_panic(expected = "found `continue` out of loop context")]
 fn bare_jump_continue_in_fun() {
     assert_eval(&[(
-        "for(var i = 0; i < 10; i = i + 1) { fun g() { continue; } }",
+        "for (var i = 0; i < 10; i = i + 1) { fun g() { continue; } }",
         "",
     )]);
 }
