@@ -87,14 +87,7 @@ impl<'s> Parser<'s> {
         &mut self,
         mut parser: impl FnMut(&mut Self) -> Result<T>,
     ) -> Result<Vec<T>> {
-        std::iter::from_fn(|| {
-            if self.peek().is_some() {
-                Some(parser(self))
-            } else {
-                None
-            }
-        })
-        .try_collect()
+        std::iter::from_fn(|| self.peek().is_some().then(|| parser(self))).try_collect()
     }
 
     pub(crate) fn many_till<T>(
@@ -103,11 +96,10 @@ impl<'s> Parser<'s> {
         till: TokenType,
     ) -> Result<Vec<T>> {
         std::iter::from_fn(|| {
-            if self.peek().filter(|t| t.ty != till).is_some() {
-                Some(parser(self))
-            } else {
-                None
-            }
+            self.peek()
+                .filter(|t| t.ty != till)
+                .is_some()
+                .then(|| parser(self))
         })
         .try_collect()
     }

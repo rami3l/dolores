@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use super::Object;
 use crate::util::{rc_cell_of, RcCell};
@@ -25,7 +25,7 @@ impl Env {
 
     #[must_use]
     pub(crate) fn outer_nth(this: &RcCell<Env>, n: usize) -> Option<RcCell<Self>> {
-        iter::successors(Some(Arc::clone(this)), |env| env.lock().outer.clone()).nth(n)
+        std::iter::successors(Some(Arc::clone(this)), |env| env.lock().outer.clone()).nth(n)
     }
 
     #[must_use]

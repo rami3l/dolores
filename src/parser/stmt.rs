@@ -327,11 +327,10 @@ impl Parser<'_> {
     pub(crate) fn block_stmt(&mut self) -> Result<Stmt> {
         // When parsing statements here, we need an 1-token lookahead.
         let stmts = std::iter::from_fn(|| {
-            if self.peek().filter(|t| t.ty != RightBrace).is_some() {
-                Some(self.decl())
-            } else {
-                None
-            }
+            self.peek()
+                .filter(|t| t.ty != RightBrace)
+                .is_some()
+                .then(|| self.decl())
         })
         .try_collect()?;
         self.consume(
