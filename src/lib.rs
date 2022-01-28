@@ -19,5 +19,6 @@ pub(crate) mod parser;
 pub(crate) mod resolver;
 pub(crate) mod run;
 pub(crate) mod util;
+pub(crate) mod vm;
 
 pub use crate::cmd::Dolores;
