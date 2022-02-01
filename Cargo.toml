@@ -14,6 +14,7 @@ derive_more = "0.99.17"
 itertools = "0.10.3"
 logos = "0.12.0"
 parking_lot = "0.11.2"
+rle_vec = "0.4.1"
 rustyline = "9.1.1"
 tap = "1.0.1"
 uuid = { version = "0.8.2", default-features = false, features = ["v4"] }
