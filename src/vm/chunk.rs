@@ -18,6 +18,10 @@ impl Chunk {
         Self::default()
     }
 
+    pub(crate) fn get(&self, idx: usize) -> Option<&Inst> {
+        self.code.get(idx)
+    }
+
     /// Pushes a new instruction ([`Inst`]) into the chunk.
     /// Returns the index of the last instruction.
     pub(crate) fn push(&mut self, instruction: Inst, line: usize) -> usize {

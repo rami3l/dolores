@@ -3,16 +3,21 @@ use std::path::Path;
 use anyhow::Result;
 use rustyline::{error::ReadlineError, Editor};
 
-use crate::{interpreter::Interpreter, lexer::Lexer, parser::Parser};
+use crate::{lexer::Lexer, parser::Parser};
 
 pub(crate) fn run_file(path: impl AsRef<Path>) -> Result<()> {
+    todo!();
+    /*
     let interpreter = &mut Interpreter::default();
     let contents = std::fs::read_to_string(path)?;
     run(&contents, interpreter, false);
     Ok(())
+    */
 }
 
 pub(crate) fn run_prompt() -> Result<()> {
+    todo!();
+    /*
     let interpreter = &mut Interpreter::default();
     let mut reader = Editor::<()>::new();
     loop {
@@ -21,9 +26,15 @@ pub(crate) fn run_prompt() -> Result<()> {
             ln => run(&ln?, interpreter, true),
         }
     }
+    */
 }
 
-pub(crate) fn run_str(src: &str, interpreter: &mut Interpreter, repl_mode: bool) -> Result<String> {
+pub(crate) fn run_str(
+    src: &str,
+    /* interpreter: &mut Interpreter, */ repl_mode: bool,
+) -> Result<String> {
+    todo!();
+    /*
     let tokens = || Lexer::new(src);
     match Parser::new(tokens()).parse() {
         Ok(stmts) => {
@@ -49,9 +60,12 @@ pub(crate) fn run_str(src: &str, interpreter: &mut Interpreter, repl_mode: bool)
         }
         Err(e) => Err(e),
     }
+    */
 }
 
-fn run(src: &str, interpreter: &mut Interpreter, repl_mode: bool) {
+fn run(src: &str, /* interpreter: &mut Interpreter, */ repl_mode: bool) {
+    todo!();
+    /*
     run_str(src, interpreter, repl_mode).map_or_else(
         |e| println!("{:?}", e),
         |expr| {
@@ -60,4 +74,5 @@ fn run(src: &str, interpreter: &mut Interpreter, repl_mode: bool) {
             }
         },
     );
+    */
 }

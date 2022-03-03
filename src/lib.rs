@@ -13,10 +13,8 @@
 
 pub(crate) mod cmd;
 pub(crate) mod error;
-pub(crate) mod interpreter;
 pub(crate) mod lexer;
 pub(crate) mod parser;
-pub(crate) mod resolver;
 pub(crate) mod run;
 pub(crate) mod util;
 pub(crate) mod vm;
