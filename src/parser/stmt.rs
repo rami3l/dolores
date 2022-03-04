@@ -2,14 +2,13 @@ mod tests;
 
 use std::fmt::Display;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use itertools::Itertools;
 use tap::TapFallible;
 
 use super::{Expr, Lit, Parser};
-#[allow(clippy::enum_glob_use)]
 use crate::lexer::{Token, TokenType::*};
-use crate::{bail, error::report, util::disp_slice};
+use crate::{error::Error, util::disp_slice};
 
 #[derive(Debug, Clone)]
 pub(crate) enum Stmt {
@@ -126,12 +125,11 @@ impl Parser<'_> {
         let methods = self.many_till(Self::fun_decl, RightBrace)?;
         if self.test(&[RightBrace]).is_none() {
             self.sync();
-            let ctx = "while parsing Class method list";
-            bail!(
-                self.previous().unwrap().pos,
-                ctx,
-                "expected `}` to end the class body",
-            )
+            let ctx = "";
+            bail!(Error::ParseError {
+                pos: self.previous().unwrap().pos,
+                msg: "while parsing Class method list: expected `}` to end the class body".into(),
+            });
         }
         Ok(Stmt::Class {
             name,
@@ -214,12 +212,9 @@ impl Parser<'_> {
     fn if_stmt(&mut self) -> Result<Stmt> {
         let ctx = "while parsing an If statement";
         let cond = self.parens(Self::expr, "the Predicate")?;
-        let then_stmt = Box::new(self.stmt().with_context(|| {
-            report(
-                self.previous().unwrap().pos,
-                ctx,
-                "nothing in the Then branch",
-            )
+        let then_stmt = Box::new(self.stmt().with_context(|| Error::ParseError {
+            pos: self.previous().unwrap().pos,
+            msg: format!("{ctx}: nothing in the Then branch"),
         })?);
         let else_stmt = if self.test(&[Else]).is_some() {
             Some(Box::new(self.stmt()?))
@@ -236,12 +231,9 @@ impl Parser<'_> {
     fn while_stmt(&mut self) -> Result<Stmt> {
         let ctx = "while parsing a While statement";
         let cond = self.parens(Self::expr, "the Predicate")?;
-        let body = Box::new(self.stmt().with_context(|| {
-            report(
-                self.previous().unwrap().pos,
-                ctx,
-                "nothing in the loop body",
-            )
+        let body = Box::new(self.stmt().with_context(|| Error::ParseError {
+            pos: self.previous().unwrap().pos,
+            msg: format!("{ctx}: nothing in the loop body"),
         })?);
         Ok(Stmt::While { cond, body })
     }
@@ -272,12 +264,9 @@ impl Parser<'_> {
             },
             "the Predicate Clauses",
         )?;
-        let body = Box::new(self.stmt().with_context(|| {
-            report(
-                self.previous().unwrap().pos,
-                ctx,
-                "nothing in the loop body",
-            )
+        let body = Box::new(self.stmt().with_context(|| Error::ParseError {
+            pos: self.previous().unwrap().pos,
+            msg: format!("{ctx}: nothing in the loop body"),
         })?);
 
         // Desugaring begins...
@@ -299,12 +288,9 @@ impl Parser<'_> {
     }
 
     fn print_stmt(&mut self) -> Result<Stmt> {
-        let rhs = self.expr().with_context(|| {
-            report(
-                self.previous().unwrap().pos,
-                "while parsing a Print statement",
-                "nothing to print",
-            )
+        let rhs = self.expr().with_context(|| Error::ParseError {
+            pos: self.previous().unwrap().pos,
+            msg: "while parsing a Print statement: nothing to print".into(),
         })?;
         self.consume(
             &[Semicolon],

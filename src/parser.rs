@@ -10,15 +10,11 @@ pub(crate) use self::{
     expr::{Expr, Lit},
     stmt::Stmt,
 };
-use crate::lexer::Lexer;
-#[allow(clippy::enum_glob_use)]
-use crate::{
-    error::report,
-    lexer::{
-        Token,
-        TokenType::{self, *},
-    },
+use crate::lexer::{
+    Token,
+    TokenType::{self, *},
 };
+use crate::{error::Error, lexer::Lexer};
 
 pub(crate) struct Parser<'s> {
     tokens: Peekable<Lexer<'s>>,
@@ -64,9 +60,10 @@ impl<'s> Parser<'s> {
 
     /// Consumes a specific token or throws an error.
     fn consume(&mut self, tys: &[TokenType], ctx: &str, msg: impl Display) -> Result<Token> {
-        self.test(tys)
-            .cloned()
-            .with_context(|| report(self.previous().unwrap().pos, ctx, msg))
+        self.test(tys).cloned().with_context(|| Error::ParseError {
+            pos: self.previous().unwrap().pos,
+            msg: format!("{ctx}: {msg}"),
+        })
     }
 
     fn sync(&mut self) {

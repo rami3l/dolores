@@ -4,6 +4,7 @@ use itertools::Itertools;
 use parking_lot::Mutex;
 
 pub(crate) type RcCell<T> = Arc<Mutex<T>>;
+pub(crate) type SrcPos = (usize, usize);
 
 pub(crate) fn rc_cell_of<T>(t: T) -> RcCell<T> {
     Arc::new(Mutex::new(t))
@@ -13,7 +14,7 @@ pub(crate) fn rc_cell_of<T>(t: T) -> RcCell<T> {
 /// the text editor standard (index starting from 1).
 ///
 /// *Shamelessly copied from <https://stackoverflow.com/a/66443805.>*
-pub(crate) fn index_to_pos(src: &str, idx: usize) -> (usize, usize) {
+pub(crate) fn index_to_pos(src: &str, idx: usize) -> SrcPos {
     src[..=idx]
         .lines()
         .enumerate()

@@ -17,6 +17,7 @@ parking_lot = "0.11.2"
 rle_vec = "0.4.1"
 rustyline = "9.1.1"
 tap = "1.0.1"
+thiserror = "1.0.30"
 uuid = { version = "0.8.2", default-features = false, features = ["v4"] }
 
 [dev-dependencies]

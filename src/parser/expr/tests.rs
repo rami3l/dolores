@@ -1,5 +1,4 @@
 #![cfg(test)]
-#![allow(clippy::enum_glob_use)]
 
 use pretty_assertions::assert_eq;
 

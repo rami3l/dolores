@@ -183,7 +183,6 @@ pub(crate) enum TokenType {
     Error,
 }
 
-#[allow(clippy::enum_glob_use)]
 #[cfg(test)]
 mod tests {
     use indoc::indoc;

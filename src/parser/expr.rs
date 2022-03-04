@@ -2,19 +2,15 @@ mod tests;
 
 use std::fmt::Display;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use itertools::Itertools;
 
 use super::{Parser, Stmt};
-use crate::util::disp_slice;
-#[allow(clippy::enum_glob_use)]
-use crate::{
-    bail,
-    lexer::{
-        Token,
-        TokenType::{self, *},
-    },
+use crate::lexer::{
+    Token,
+    TokenType::{self, *},
 };
+use crate::{error::Error, util::disp_slice};
 
 const MAX_FUN_ARG_COUNT: usize = 255;
 
@@ -70,7 +66,6 @@ pub(crate) enum Expr {
 
 impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        #[allow(clippy::enum_glob_use)]
         use Expr::*;
 
         match self {
@@ -146,11 +141,11 @@ impl Parser<'_> {
                     let to = Box::new(rhs()?);
                     return Ok(Expr::Set { obj, name, to });
                 }
-                _ => bail!(
-                    self.previous().unwrap().pos,
-                    "while parsing a Assignment expression",
-                    "can only assign to a variable",
-                ),
+                _ => bail!(Error::ParseError {
+                    pos: self.previous().unwrap().pos,
+                    msg: "while parsing a Assignment expression: can only assign to a variable"
+                        .into(),
+                }),
             }
         }
         Ok(lhs)
@@ -204,12 +199,13 @@ impl Parser<'_> {
             let (pos, lexeme) = (op.pos, op.lexeme.clone());
             // Consume the ill-formed RHS.
             let _rhs = self.comparison_expr()?;
-            bail!(
+            bail!(Error::ParseError {
                 pos,
-                "while parsing an Comparison expression",
-                "found binary operator `{}` with no LHS",
-                lexeme,
-            );
+                msg: format!(
+                    "while parsing an Comparison expression: found binary operator `{}` with no LHS",
+                    lexeme
+                ),
+            });
         }
         self.recursive_descent_binary(&[Greater, GreaterEqual, Less, LessEqual], Self::term_expr)
     }
@@ -219,12 +215,13 @@ impl Parser<'_> {
             let (pos, lexeme) = (op.pos, op.lexeme.clone());
             // Consume the ill-formed RHS.
             let _rhs = self.term_expr()?;
-            bail!(
+            bail!(Error::ParseError {
                 pos,
-                "while parsing an Term expression",
-                "found binary operator `{}` with no LHS",
-                lexeme,
-            );
+                msg: format!(
+                    "while parsing an Term expression: found binary operator `{}` with no LHS",
+                    lexeme
+                ),
+            });
         }
         self.recursive_descent_binary(&[Plus, Minus], Self::factor_expr)
     }
@@ -235,12 +232,13 @@ impl Parser<'_> {
             let (pos, lexeme) = (op.pos, op.lexeme.clone());
             // Consume the ill-formed RHS.
             let _rhs = self.factor_expr()?;
-            bail!(
+            bail!(Error::ParseError {
                 pos,
-                "while parsing an Factor expression",
-                "found binary operator `{}` with no LHS",
-                lexeme,
-            );
+                msg: format!(
+                    "while parsing a Factor expression: found binary operator `{}` with no LHS",
+                    lexeme
+                ),
+            });
         }
         self.recursive_descent_binary(&[Slash, Star], Self::unary_expr)
     }
@@ -250,12 +248,13 @@ impl Parser<'_> {
             let (pos, lexeme) = (op.pos, op.lexeme.clone());
             // Consume the ill-formed RHS.
             let _rhs = self.unary_expr()?;
-            bail!(
+            bail!(Error::ParseError {
                 pos,
-                "while parsing an Unary expression",
-                "found binary operator `{}` with no LHS",
-                lexeme,
-            );
+                msg: format!(
+                    "while parsing an Unary expression: found binary operator `{}` with no LHS",
+                    lexeme
+                ),
+            });
         }
         if let Some(op) = self.test(&[Bang, Minus]) {
             let op = op.clone();
@@ -286,10 +285,9 @@ impl Parser<'_> {
                     name,
                 }
             } else {
-                break;
+                break Ok(res);
             }
         }
-        Ok(res)
     }
 
     pub(crate) fn call_params<F, O>(&mut self, arg_parser: F) -> Result<Vec<O>>
@@ -308,18 +306,16 @@ impl Parser<'_> {
         }
         if self.test(&[RightParen]).is_none() {
             self.sync();
-            bail!(
-                self.previous().unwrap().pos,
-                ctx,
-                "expected `)` to end the parameter list"
-            );
+            bail!(Error::ParseError {
+                pos: self.previous().unwrap().pos,
+                msg: format!("{ctx}: expected `)` to end the parameter list"),
+            });
         }
         if args.len() > MAX_FUN_ARG_COUNT {
-            bail!(
-                self.previous().unwrap().pos,
-                ctx,
-                format!("cannot have more than {} parameters", MAX_FUN_ARG_COUNT)
-            )
+            bail!(Error::ParseError {
+                pos: self.previous().unwrap().pos,
+                msg: format!("{ctx}: cannot have more than {MAX_FUN_ARG_COUNT} parameters"),
+            });
         }
         Ok(args)
     }
@@ -348,7 +344,10 @@ impl Parser<'_> {
                 let lexeme = &n.lexeme;
                 let val = lexeme.parse();
                 if let Err(e) = &val {
-                    bail!(n.pos, &format!("while parsing Number `{}`", lexeme), e);
+                    bail!(Error::ParseError {
+                        pos: n.pos,
+                        msg: format!("while parsing Number `{}: {}`", lexeme, e),
+                    });
                 }
                 Expr::Literal(Lit::Number(val.unwrap()))
             },
@@ -376,7 +375,10 @@ impl Parser<'_> {
                 let inner = self.expr()?;
                 if self.test(&[RightParen]).is_none() {
                     self.sync();
-                    bail!(pos, "while parsing a parenthesized Group", "`)` expected");
+                    bail!(Error::ParseError {
+                        pos,
+                        msg: "while parsing a parenthesized Group: `)` expected".into(),
+                    });
                 }
                 Expr::Grouping(Box::new(inner))
             },
@@ -390,12 +392,14 @@ impl Parser<'_> {
         };
 
         if let Some(t) = self.peek() {
-            bail!(
-                t.pos,
-                &format!("while parsing `{}`", &t.lexeme),
-                "unexpected token",
-            );
+            bail!(Error::ParseError {
+                pos: t.pos,
+                msg: format!("while parsing `{}`: unexpected token", &t.lexeme),
+            });
         }
-        bail!((0, 0), "while parsing", "token index out of range");
+        bail!(Error::ParseError {
+            pos: (0, 0),
+            msg: "while parsing: token index out of range".into(),
+        });
     }
 }

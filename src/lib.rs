@@ -9,7 +9,11 @@
     unused_allocation
 )]
 // TODO: Remove the whitelist below.
-#![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
+#![allow(
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::enum_glob_use
+)]
 
 pub(crate) mod cmd;
 pub(crate) mod error;
