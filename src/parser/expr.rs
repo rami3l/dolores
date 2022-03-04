@@ -277,8 +277,7 @@ impl Parser<'_> {
             } else if self.test(&[Dot]).is_some() {
                 let name = self.consume(
                     &[Identifier],
-                    "while parsing a Get expression",
-                    "expect property name after `.`",
+                    "while parsing a Get expression: expect property name after `.`",
                 )?;
                 res = Expr::Get {
                     obj: Box::new(res),
@@ -355,13 +354,12 @@ impl Parser<'_> {
             i = Identifier => Expr::Variable(i.clone()),
             _ = Fun => {
                 let ctx = "while parsing a Lambda expression";
-                self.consume(&[LeftParen], ctx, "expected `(` to begin the parameter list")?;
+                self.consume(&[LeftParen], format!("{ctx}: expected `(` to begin the parameter list"))?;
                 let params =
-                    self.call_params(|this| this.consume(&[Identifier], ctx, "expected parameter name"))?;
+                    self.call_params(|this| this.consume(&[Identifier], format!("{ctx}: expected parameter name")))?;
                 self.consume(
                     &[LeftBrace],
-                    ctx,
-                    "expected `{` after function parameter list",
+                    format!("{ctx}: expected `{{` after function parameter list"),
                 )?;
                 let body = if let Stmt::Block(stmts) = self.block_stmt()? {
                     stmts
@@ -385,8 +383,8 @@ impl Parser<'_> {
             sup = Super => {
                 let kw = sup.clone();
                 let ctx = "while parsing a superclass method";
-                self.consume(&[Dot], ctx, "expected `.` after `super`")?;
-                let method = self.consume(&[Identifier], ctx, "expected superclass method name after `.`")?;
+                self.consume(&[Dot], format!("{ctx}: expected `.` after `super`"))?;
+                let method = self.consume(&[Identifier], format!("{ctx}: expected superclass method name after `.`"))?;
                 Expr::Super { kw, method }
             },
         };

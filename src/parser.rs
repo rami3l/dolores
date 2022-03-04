@@ -59,10 +59,10 @@ impl<'s> Parser<'s> {
     }
 
     /// Consumes a specific token or throws an error.
-    fn consume(&mut self, tys: &[TokenType], ctx: &str, msg: impl Display) -> Result<Token> {
+    fn consume(&mut self, tys: &[TokenType], msg: impl Display) -> Result<Token> {
         self.test(tys).cloned().with_context(|| Error::ParseError {
             pos: self.previous().unwrap().pos,
-            msg: format!("{ctx}: {msg}"),
+            msg: format!("{msg}"),
         })
     }
 
@@ -106,9 +106,9 @@ impl<'s> Parser<'s> {
         mut parser: impl FnMut(&mut Self) -> Result<T>,
         ctx: &str,
     ) -> Result<T> {
-        self.consume(&[LeftParen], ctx, format!("expected `(` before {}", ctx))?;
+        self.consume(&[LeftParen], format!("expected `(` before {ctx}"))?;
         let res = parser(self)?;
-        self.consume(&[RightParen], ctx, format!("expected `)` after {}", ctx))?;
+        self.consume(&[RightParen], format!("expected `)` after {ctx}"))?;
         Ok(res)
     }
 

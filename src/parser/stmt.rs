@@ -113,15 +113,20 @@ impl Parser<'_> {
 
     fn class_decl(&mut self) -> Result<Stmt> {
         let ctx = "while parsing a Class declaration";
-        let name = self.consume(&[Identifier], ctx, "expected class name")?;
+        let name = self.consume(&[Identifier], format!("{ctx}: expected class name"))?;
         let superclass = if self.test(&[Less]).is_some() {
-            let super_name =
-                self.consume(&[Identifier], ctx, "expected superclass name after `<`")?;
+            let super_name = self.consume(
+                &[Identifier],
+                format!("{ctx}: expected superclass name after `<`"),
+            )?;
             Some(Expr::Variable(super_name))
         } else {
             None
         };
-        self.consume(&[LeftBrace], ctx, "expected `{` after class name")?;
+        self.consume(
+            &[LeftBrace],
+            format!("{ctx}: expected `{{` after class name"),
+        )?;
         let methods = self.many_till(Self::fun_decl, RightBrace)?;
         if self.test(&[RightBrace]).is_none() {
             self.sync();
@@ -140,14 +145,17 @@ impl Parser<'_> {
 
     fn fun_decl(&mut self) -> Result<Stmt> {
         let ctx = "while parsing a Fun declaration";
-        let name = self.consume(&[Identifier], ctx, "expected function name")?;
-        self.consume(&[LeftParen], ctx, "expected `(` after function name")?;
-        let params =
-            self.call_params(|this| this.consume(&[Identifier], ctx, "expected parameter name"))?;
+        let name = self.consume(&[Identifier], format!("{ctx}: expected function name"))?;
+        self.consume(
+            &[LeftParen],
+            format!("{ctx}: expected `(` after function name"),
+        )?;
+        let params = self.call_params(|this| {
+            this.consume(&[Identifier], format!("{ctx}: expected parameter name"))
+        })?;
         self.consume(
             &[LeftBrace],
-            ctx,
-            "expected `{` after function parameter list",
+            format!("{ctx}: expected `{{` after function parameter list"),
         )?;
         let body = if let Stmt::Block(stmts) = self.block_stmt()? {
             stmts
@@ -159,13 +167,13 @@ impl Parser<'_> {
 
     fn var_decl(&mut self) -> Result<Stmt> {
         let ctx = "while parsing a Var declaration";
-        let name = self.consume(&[Identifier], ctx, "expected variable name")?;
+        let name = self.consume(&[Identifier], format!("{ctx}: expected variable name"))?;
         let init = if self.test(&[Equal]).is_some() {
             Some(self.expr()?)
         } else {
             None
         };
-        self.consume(&[Semicolon], ctx, "expected `;` after a value")?;
+        self.consume(&[Semicolon], format!("{ctx}: expected `;` after a value"))?;
         Ok(Stmt::Var { name, init })
     }
 
@@ -187,8 +195,7 @@ impl Parser<'_> {
         let kw = self.previous().unwrap().clone();
         self.consume(
             &[Semicolon],
-            "while parsing an Jump statement",
-            "expected `;` at the end",
+            "while parsing an Jump statement: expected `;` at the end",
         )?;
         Ok(Stmt::Jump(kw))
     }
@@ -199,8 +206,7 @@ impl Parser<'_> {
             let cond = self.expr()?;
             self.consume(
                 &[Semicolon],
-                "while parsing an Return statement",
-                "expected `;` at the end",
+                "while parsing an Return statement: expected `;` at the end",
             )?;
             Some(cond)
         } else {
@@ -250,7 +256,10 @@ impl Parser<'_> {
                 };
                 let cond = if this.test(&[Semicolon]).is_none() {
                     let cond = this.expr()?;
-                    this.consume(&[Semicolon], ctx, "expected `;` after the Condition Clause")?;
+                    this.consume(
+                        &[Semicolon],
+                        format!("{ctx}: expected `;` after the Condition Clause"),
+                    )?;
                     Some(cond)
                 } else {
                     None
@@ -294,8 +303,7 @@ impl Parser<'_> {
         })?;
         self.consume(
             &[Semicolon],
-            "while parsing an Print statement",
-            "expected `;` after a value",
+            "while parsing an Print statement: expected `;` after a value",
         )?;
         Ok(Stmt::Print(rhs))
     }
@@ -304,8 +312,7 @@ impl Parser<'_> {
         let expr = self.expr()?;
         self.consume(
             &[Semicolon],
-            "while parsing an Expression statement",
-            "expected `;` after a value",
+            "while parsing an Expression statement: expected `;` after a value",
         )?;
         Ok(Stmt::Expression(expr))
     }
@@ -321,8 +328,7 @@ impl Parser<'_> {
         .try_collect()?;
         self.consume(
             &[RightBrace],
-            "while parsing a Block statement",
-            "expected `}` to finish the block",
+            "while parsing a Block statement: expected `}` to finish the block",
         )?;
         Ok(Stmt::Block(stmts))
     }

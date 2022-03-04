@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use thiserror::Error;
 
 use crate::util::SrcPos;
