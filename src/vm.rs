@@ -43,9 +43,7 @@ impl Vm {
                 Inst::Class(_) => todo!(),
                 Inst::CloseUpVal => todo!(),
                 Inst::Closure(_) => todo!(),
-                Inst::Const(const_idx) => self
-                    .stack
-                    .push(self.chunk.consts[const_idx as usize].clone()),
+                Inst::Const(const_idx) => self.stack.push(self.chunk.consts[const_idx as usize]),
                 Inst::DefGlobal(_) => todo!(),
                 Inst::Div => todo!(),
                 Inst::Equal => todo!(),
