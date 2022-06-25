@@ -1,11 +1,12 @@
 use std::fmt::Display;
 
 use anyhow::{bail, Result};
+use gc::{Finalize, Trace};
 
 use super::{Class, Closure, Instance};
 use crate::parser::Lit;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Trace, Finalize)]
 pub(crate) enum Object {
     Nil,
     Bool(bool),
@@ -66,13 +67,13 @@ impl Object {
     }
 }
 
-impl TryFrom<Object> for f64 {
+impl TryFrom<&Object> for f64 {
     type Error = anyhow::Error;
 
-    fn try_from(obj: Object) -> Result<Self, Self::Error> {
+    fn try_from(obj: &Object) -> Result<Self, Self::Error> {
         match obj {
-            Object::Number(n) => Ok(n),
-            Object::Bool(b) => Ok(f64::from(b as u8)),
+            Object::Number(n) => Ok(*n),
+            Object::Bool(b) => Ok(f64::from(u8::from(*b))),
             obj => bail!(
                 "Runtime Error: object `{:?}` cannot be converted to Number",
                 obj,

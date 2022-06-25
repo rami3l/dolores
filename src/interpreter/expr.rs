@@ -1,6 +1,5 @@
-use std::sync::Arc;
-
 use anyhow::{anyhow, Context, Result};
+use gc::Gc;
 use itertools::Itertools;
 use tap::prelude::*;
 
@@ -15,7 +14,7 @@ use crate::{
 impl Interpreter {
     #[allow(clippy::too_many_lines)]
     pub(crate) fn eval(&mut self, expr: Expr) -> Result<Object> {
-        let env = &Arc::clone(&self.env);
+        let env = &Gc::clone(&self.env);
         match expr {
             Expr::Assign { name, val } => {
                 let dist = self.locals.get(&name).copied();
@@ -33,7 +32,7 @@ impl Interpreter {
                         if let Some(dist) = dist {
                             self.assign_at(dist, ident, val.clone())?;
                         } else {
-                            self.globals.lock().insert_val(ident, val.clone());
+                            self.globals.borrow_mut().insert_val(ident, val.clone());
                         }
                         Ok(val)
                     })
@@ -41,10 +40,10 @@ impl Interpreter {
             Expr::Binary { lhs, op, rhs } => {
                 #[allow(clippy::enum_glob_use)]
                 use Object::*;
-                Ok(match (op.ty, self.eval(*lhs)?, self.eval(*rhs)?) {
-                    (Tk::Plus, Str(lhs), Str(rhs)) => Str(lhs + &rhs),
-                    (Tk::Plus, Str(lhs), rhs) => Str(lhs + &format!("{}", rhs)),
-                    (Tk::Plus, lhs, Str(rhs)) => Str(format!("{}", lhs) + &rhs),
+                Ok(match (op.ty, &self.eval(*lhs)?, &self.eval(*rhs)?) {
+                    (Tk::Plus, Str(lhs), Str(rhs)) => Str(format!("{lhs}{rhs}")),
+                    (Tk::Plus, Str(lhs), rhs) => Str(format!("{lhs}{rhs}")),
+                    (Tk::Plus, lhs, Str(rhs)) => Str(format!("{lhs}{rhs}")),
                     (Tk::Plus, lhs @ (Bool(_) | Number(_)), rhs @ (Bool(_) | Number(_))) => {
                         Number(lhs.try_conv::<f64>()? + rhs.try_conv::<f64>()?)
                     }
@@ -86,16 +85,22 @@ impl Interpreter {
             Expr::Call { callee, args, end } => {
                 let callee = self.eval(*callee)?;
                 let args: Vec<Object> = args.into_iter().map(|i| self.eval(i)).try_collect()?;
-                let res = match callee {
-                    Object::NativeFn(clos) => clos.apply(self, args).with_context(|| {
-                        runtime_report(end.pos, "while evaluating a function Call expression", "")
-                    })?,
+                let res = match &callee {
+                    Object::NativeFn(clos) => {
+                        clos.clone().apply(self, args).with_context(|| {
+                            runtime_report(
+                                end.pos,
+                                "while evaluating a function Call expression",
+                                "",
+                            )
+                        })?
+                    }
                     Object::ForeignFn(f) => f(args)?,
                     Object::Class(c) => {
-                        let instance = Instance::from(c);
+                        let instance = Instance::from(c.clone());
                         if let Some(it) = instance.class.method("init") {
-                            if let Object::NativeFn(clos) = it {
-                                clos.bind(instance.clone()).apply(self, args)?;
+                            if let Object::NativeFn(clos) = &it {
+                                clos.clone().bind(instance.clone()).apply(self, args)?;
                             } else {
                                 unreachable!();
                             }
@@ -190,7 +195,7 @@ impl Interpreter {
                 let sup = Env::lookup_dict(sup_env, "super").with_context(|| {
                     runtime_report(kw.pos, ctx, "identifier `super` is undefined")
                 })?;
-                match (this, sup) {
+                match (&this, &sup) {
                     (Object::Instance(this), Object::Class(sup)) => {
                         let lexeme = &method.lexeme;
                         let method = sup.method(lexeme).with_context(|| {
@@ -198,8 +203,8 @@ impl Interpreter {
                                 format!("property `{}` undefined for the given object", lexeme);
                             runtime_report(method.pos, ctx, err_msg)
                         })?;
-                        if let Object::NativeFn(clos) = method {
-                            Ok(Object::NativeFn(clos.bind(this)))
+                        if let Object::NativeFn(clos) = &method {
+                            Ok(Object::NativeFn(clos.clone().bind(this.clone())))
                         } else {
                             unreachable!()
                         }
@@ -217,7 +222,7 @@ impl Interpreter {
             Expr::Unary { op, rhs } => match op.ty {
                 Tk::Bang => Ok(Object::Bool(!self.eval(*rhs)?.to_bool())),
                 Tk::Minus => {
-                    let rhs = self.eval(*rhs)?;
+                    let rhs = &self.eval(*rhs)?;
                     let rhs = -rhs.try_conv::<f64>().with_context(|| {
                         let err_msg = format!(
                             "unary operator `{:?}` undefined for the given object",
@@ -256,7 +261,7 @@ impl Interpreter {
                 dist,
             )
         })?;
-        target.lock().insert_val(ident, val);
+        target.borrow_mut().insert_val(ident, val);
         Ok(())
     }
 }

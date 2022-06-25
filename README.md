@@ -2,11 +2,11 @@
 
 > "... light of my life."
 
-[The Lox Programming Language](https://www.craftinginterpreters.com/the-lox-language.html) implemented in idiomatic Rust.
+[The Lox Programming Language](https://www.craftinginterpreters.com/the-lox-language.html) implemented in Rust.
 
 Ported from the original Java implementation `jlox`, but with no visitor patterns, no `null` values, no subclasses and implicit conversions, just pure `enum`s.
 
-~~`Arc<T>` is a necessary evil...~~
+~~`Gc<T>` is a necessary evil...~~
 
 ---
 

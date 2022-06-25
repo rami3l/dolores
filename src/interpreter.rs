@@ -7,9 +7,10 @@ pub(crate) mod object;
 mod stmt;
 mod tests;
 
-use std::{collections::HashMap, mem, sync::Arc};
+use std::{collections::HashMap, mem};
 
 use anyhow::Result;
+use gc::Gc;
 
 pub(crate) use self::{
     class::{Class, Instance},
@@ -22,24 +23,24 @@ use crate::{
     lexer::Token,
     parser::{Expr, Stmt},
     resolver::Resolver,
-    util::RcCell,
+    util::MutCell,
 };
 
 /// The interpreter, containing the necessary evaluation context for expressions
 /// and statements.
 #[derive(Debug, Clone)]
 pub(crate) struct Interpreter {
-    env: RcCell<Env>,
-    pub(crate) globals: RcCell<Env>,
+    env: MutCell<Env>,
+    pub(crate) globals: MutCell<Env>,
     pub(crate) locals: HashMap<Token, usize>,
 }
 
 impl Interpreter {
     #[must_use]
-    pub(crate) fn new(env: &RcCell<Env>) -> Self {
+    pub(crate) fn new(env: &MutCell<Env>) -> Self {
         Self {
-            env: Arc::clone(env),
-            globals: Arc::clone(env),
+            env: Gc::clone(env),
+            globals: Gc::clone(env),
             locals: HashMap::new(),
         }
     }
