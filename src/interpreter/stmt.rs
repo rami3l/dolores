@@ -1,16 +1,15 @@
-use std::sync::Arc;
-
 use anyhow::Result;
+use gc::Gc;
 
 use super::{BreakMarker, Class, Closure, ContinueMarker, Env, Interpreter, Object, ReturnMarker};
 use crate::{lexer::TokenType as Tk, parser::Stmt, runtime_bail};
 
 impl Interpreter {
     pub(crate) fn exec(&mut self, stmt: Stmt) -> Result<()> {
-        let env = &Arc::clone(&self.env);
+        let env = &Gc::clone(&self.env);
         match stmt {
             Stmt::Block(stmts) => {
-                let old_env = Arc::clone(env);
+                let old_env = Gc::clone(env);
                 // Temporarily switch into the scope environment...
                 self.env = Env::from_outer(env).shared();
                 stmts.into_iter().try_for_each(|it| self.exec(it))?;
@@ -38,7 +37,7 @@ impl Interpreter {
                         )
                     }
                 } else {
-                    (Arc::clone(env), None)
+                    (Gc::clone(env), None)
                 };
                 let methods = methods
                     .into_iter()
@@ -57,7 +56,7 @@ impl Interpreter {
                     })
                     .collect();
                 let class = Object::Class(Class::new(&name.lexeme, superclass, methods));
-                self.env.lock().insert_val(&name.lexeme, class);
+                self.env.borrow_mut().insert_val(&name.lexeme, class);
             }
             Stmt::Expression(expr) => {
                 self.eval(expr)?;
@@ -65,7 +64,7 @@ impl Interpreter {
             Stmt::Fun { name, params, body } => {
                 let name: &str = &name.lexeme;
                 let closure = Object::NativeFn(Closure::new(name, params, body, env));
-                env.lock().insert_val(name, closure);
+                env.borrow_mut().insert_val(name, closure);
             }
             Stmt::If {
                 cond,
@@ -90,7 +89,7 @@ impl Interpreter {
             }
             Stmt::Var { name, init } => {
                 let init = self.eval(init.unwrap_or_default())?;
-                self.env.lock().insert_val(&name.lexeme, init);
+                self.env.borrow_mut().insert_val(&name.lexeme, init);
             }
             Stmt::While { cond, body } => {
                 while self.eval(cond.clone())?.to_bool() {

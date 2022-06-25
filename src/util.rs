@@ -1,12 +1,12 @@
-use std::{fmt::Display, sync::Arc};
+use std::fmt::Display;
 
+use gc::{Gc, GcCell, Trace};
 use itertools::Itertools;
-use parking_lot::Mutex;
 
-pub(crate) type RcCell<T> = Arc<Mutex<T>>;
+pub(crate) type MutCell<T> = Gc<GcCell<T>>;
 
-pub(crate) fn rc_cell_of<T>(t: T) -> RcCell<T> {
-    Arc::new(Mutex::new(t))
+pub(crate) fn rc_cell_of<T: Trace>(t: T) -> MutCell<T> {
+    Gc::new(GcCell::new(t))
 }
 
 /// Given a source string and an index, returns its (line, column) numbers in

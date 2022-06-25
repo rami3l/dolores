@@ -1,4 +1,3 @@
-#![forbid(unsafe_code)]
 #![warn(
     clippy::pedantic,
     missing_copy_implementations,

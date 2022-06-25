@@ -15,10 +15,10 @@ pub(crate) fn semantic_report(pos: (usize, usize), ctx: &str, msg: impl Display)
 #[macro_export]
 macro_rules! bail {
     ($pos:expr, $ctx:expr, $msg:expr $(,)?) => {
-        anyhow::bail!("{}", crate::error::report($pos, $ctx, $msg))
+        anyhow::bail!("{}", $crate::error::report($pos, $ctx, $msg))
     };
     ($pos:expr, $ctx:expr, $msg:expr, $( $arg:expr ),+ $(,)?) => {
-        anyhow::bail!("{}", crate::error::report(
+        anyhow::bail!("{}", $crate::error::report(
             $pos,
             $ctx,
             format!($msg, $( $arg ),+),
@@ -29,10 +29,10 @@ macro_rules! bail {
 #[macro_export]
 macro_rules! runtime_bail {
     ($pos:expr, $ctx:expr, $msg:expr $(,)?) => {
-        anyhow::bail!("{}", crate::error::runtime_report($pos, $ctx, $msg))
+        anyhow::bail!("{}", $crate::error::runtime_report($pos, $ctx, $msg))
     };
     ($pos:expr, $ctx:expr, $msg:expr, $( $arg:expr ),+ $(,)?) => {
-        anyhow::bail!("{}", crate::error::runtime_report(
+        anyhow::bail!("{}", $crate::error::runtime_report(
             $pos,
             $ctx,
             format!($msg, $( $arg ),+),
@@ -43,10 +43,10 @@ macro_rules! runtime_bail {
 #[macro_export]
 macro_rules! semantic_bail {
     ($pos:expr, $ctx:expr, $msg:expr $(,)?) => {
-        anyhow::bail!("{}", crate::error::semantic_report($pos, $ctx, $msg))
+        anyhow::bail!("{}", $crate::error::semantic_report($pos, $ctx, $msg))
     };
     ($pos:expr, $ctx:expr, $msg:expr, $( $arg:expr ),+ $(,)?) => {
-        anyhow::bail!("{}", crate::error::semantic_report(
+        anyhow::bail!("{}", $crate::error::semantic_report(
             $pos,
             $ctx,
             format!($msg, $( $arg ),+),
