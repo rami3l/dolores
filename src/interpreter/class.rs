@@ -1,18 +1,16 @@
 use std::{
     collections::HashMap,
     hash::{Hash, Hasher},
+    ptr,
 };
 
 use gc::{Finalize, Trace};
-use uuid::Uuid;
 
 use super::{MutCell, Object};
 use crate::util::rc_cell_of;
 
 #[derive(Debug, Clone, Trace, Finalize)]
 pub(crate) struct Class {
-    #[unsafe_ignore_trace]
-    pub(crate) uid: Uuid,
     pub(crate) name: String,
     pub(crate) superclass: Option<Box<Class>>,
     pub(crate) methods: MutCell<HashMap<String, Object>>,
@@ -26,7 +24,6 @@ impl Class {
         methods: HashMap<String, Object>,
     ) -> Self {
         Self {
-            uid: Uuid::new_v4(),
             name: name.into(),
             superclass: superclass.into().map(Box::new),
             methods: rc_cell_of(methods),
@@ -45,13 +42,13 @@ impl Class {
 
 impl Hash for Class {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.uid.hash(state);
+        self.name.hash(state);
     }
 }
 
 impl PartialEq for Class {
     fn eq(&self, other: &Self) -> bool {
-        self.uid == other.uid
+        ptr::eq(self, other)
     }
 }
 
@@ -60,7 +57,6 @@ impl Eq for Class {}
 #[derive(Debug, Clone, Trace, Finalize)]
 pub(crate) struct Instance {
     #[unsafe_ignore_trace]
-    pub(crate) uid: Uuid,
     pub(crate) class: Class,
     pub(crate) fields: MutCell<HashMap<String, Object>>,
 }
@@ -68,7 +64,6 @@ pub(crate) struct Instance {
 impl From<Class> for Instance {
     fn from(class: Class) -> Self {
         Self {
-            uid: Uuid::new_v4(),
             class,
             fields: rc_cell_of(HashMap::default()),
         }
@@ -97,13 +92,13 @@ impl Instance {
 
 impl Hash for Instance {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.uid.hash(state);
+        ptr::addr_of!(self).hash(state);
     }
 }
 
 impl PartialEq for Instance {
     fn eq(&self, other: &Self) -> bool {
-        self.uid == other.uid
+        ptr::eq(self, other)
     }
 }
 

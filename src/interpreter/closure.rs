@@ -1,21 +1,18 @@
 use std::{
     hash::{Hash, Hasher},
-    mem,
+    mem, ptr,
 };
 
 use anyhow::Result;
 use gc::{Finalize, Gc, Trace};
 use itertools::izip;
 use tap::prelude::*;
-use uuid::Uuid;
 
 use super::{Env, Instance, Interpreter, MutCell, Object, ReturnMarker};
 use crate::{lexer::Token, parser::Stmt};
 
 #[derive(Debug, Clone, Trace, Finalize)]
 pub(crate) struct Closure {
-    #[unsafe_ignore_trace]
-    pub(crate) uid: Uuid,
     pub(crate) name: Option<String>,
     #[unsafe_ignore_trace]
     pub(crate) params: Vec<Token>,
@@ -33,7 +30,6 @@ impl Closure {
         env: &MutCell<Env>,
     ) -> Self {
         Self {
-            uid: Uuid::new_v4(),
             name: name.into().map(str::to_owned),
             params: params.into_iter().collect(),
             body: body.into_iter().collect(),
@@ -106,13 +102,14 @@ impl Closure {
 
 impl Hash for Closure {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.uid.hash(state);
+        self.name.hash(state);
+        self.params.hash(state);
     }
 }
 
 impl PartialEq for Closure {
     fn eq(&self, other: &Self) -> bool {
-        self.uid == other.uid
+        ptr::eq(self, other)
     }
 }
 
