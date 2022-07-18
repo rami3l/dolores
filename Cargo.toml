@@ -16,7 +16,6 @@ itertools = "0.10.3"
 logos = "0.12.1"
 rustyline = "9.1.2"
 tap = "1.0.1"
-uuid = { version = "1.1.2", default-features = false, features = ["v4"] }
 
 [dev-dependencies]
 assert_matches = "1.5.0"

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, ptr};
 
 use anyhow::{bail, Result};
 use gc::{Finalize, Trace};
@@ -31,14 +31,16 @@ impl Display for Object {
             Object::Bool(b) => write!(f, "{}", b),
             Object::Number(n) => write!(f, "{}", n.to_string().trim_end_matches(".0")),
             Object::Str(s) => write!(f, r#""{}""#, s),
-            Object::NativeFn(clos) => write!(
-                f,
-                "<fun: {}@native>",
-                clos.name.clone().unwrap_or_else(|| clos.uid.to_string()),
-            ),
+            Object::NativeFn(clos) => {
+                if let Some(name) = &clos.name {
+                    write!(f, "<fun: {}@native>", name)
+                } else {
+                    write!(f, "<fun: {:?}@native>", ptr::addr_of!(clos))
+                }
+            }
             Object::ForeignFn(_) => write!(f, "<fun: _@foreign>"),
             Object::Class(c) => write!(f, "<class: {}>", c.name),
-            Object::Instance(i) => write!(f, "<instance: {}@{}>", i.uid, i.class.name),
+            Object::Instance(i) => write!(f, "<instance: {:?}@{}>", i as *const _, i.class.name),
         }
     }
 }
